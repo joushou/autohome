@@ -8,7 +8,7 @@ from serial import Serial
 import SocketServer, socket
 
 eventFile = "eventProtocol.json"
-serfile   = '/dev/ttyUSB0'
+serfile   = '/dev/tty.usbmodem1411'
 
 # If client has not send any data after this number of secs, connection is closed.
 requestTimeout = 1
@@ -16,16 +16,45 @@ requestTimeout = 1
 # TCP port to listen on
 listenPort = 9993
 
-A       = 3
-B       = 2
-C       = 1
-D       = 0
-EXT     = 127
-
 def switcher(id, state):
    ser.write(chr(state<<7|id))
 
 ser = Serial(serfile, 9600, timeout=1)
+
+class Automated(object):
+	def __init__(self):
+		pass
+
+	def on(self):
+		return NotImplemented
+
+	def off(self):
+		return NotImplemented
+
+	def set_state(self, s):
+		if s == 1 or s == True:
+			self.on()
+		else:
+			self.off()
+
+class AutoSartano(Automated):
+	def __init__(self, d):
+		super(AutoSartano, self).__init__()
+		self.d = d
+
+	def on(self):
+		switcher(self.d, True)
+
+	def off(self):
+		switcher(self.d, False)
+
+automators = {
+	'A': AutoSartano(3),
+	'B': AutoSartano(2),
+	'C': AutoSartano(1),
+	'D': AutoSartano(0),
+	'EXT': AutoSartano(127)
+}
 
 class eventScheduler(Thread):
 	def run(self):
@@ -45,6 +74,7 @@ class eventScheduler(Thread):
 		self.internalList = []
 
 		for el in self.events:
+			print('New event:', el)
 			self.internalList.append(self.createEvent(el))
 
 	def createEvent(self, event):
@@ -53,13 +83,14 @@ class eventScheduler(Thread):
 
 	def handleEvents(self):
 		tmp = self.internalList
+		cur = time()
 		next = 0
 		for idx, event in enumerate(tmp):
-			t = event['timestamp'] - time()
+			t = event['timestamp'] - cur
 			if t <= 0:
 				print('Executing', event['event']['name'])
 				for el in event['event']['actions']:
-					switcher(el['id'], el['state'])
+					automators[event['id']].set_state(el['state'])
 				self.internalList[idx] = self.createEvent(event['event'])
 			elif t > next:
 				next = t
@@ -67,6 +98,19 @@ class eventScheduler(Thread):
 
 scheduler = eventScheduler()
 scheduler.start()
+
+commands = {
+	"A_ON": lambda: automators['A'].on(),
+	"B_ON": lambda: automators['B'].on(),
+	"C_ON": lambda: automators['C'].on(),
+	"D_ON": lambda: automators['D'].on(),
+	"EXT_ON": lambda: automators['EXT'].on(),
+	"A_OFF": lambda: automators['A'].off(),
+	"B_OFF": lambda: automators['B'].off(),
+	"C_OFF": lambda: automators['C'].off(),
+	"D_OFF": lambda: automators['D'].off(),
+	"EXT_OFF": lambda: automators['EXT'].off()
+}
 
 class TCPHandler(SocketServer.BaseRequestHandler):
 	def parseData(self, data):
@@ -82,18 +126,6 @@ class TCPHandler(SocketServer.BaseRequestHandler):
 				if subparts[0] not in setOptions:
 					setOptions.append(subparts[0])
 
-		commands = {
-			"A_ON": lambda: switcher(A, 1),
-			"B_ON": lambda: switcher(B, 1),
-			"C_ON": lambda: switcher(C, 1),
-			"D_ON": lambda: switcher(D, 1),
-			"EXT_ON": lambda: switcher(EXT, 1),
-			"A_OFF": lambda: switcher(A, 0),
-			"B_OFF": lambda: switcher(B, 0),
-			"C_OFF": lambda: switcher(C, 0),
-			"D_OFF": lambda: switcher(D, 0),
-			"EXT_OFF": lambda: switcher(EXT, 0)
-		}
 		parts[0] = parts[0].upper()
 		if parts[0] in commands:
 			returnString = commands[parts[0]]()
