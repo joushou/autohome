@@ -2,13 +2,13 @@
 	{
 		"name": "TestEvent",
 		"time": {
-			"hours": 21,
-			"minutes": 12
+			"hours": 8,
+			"minutes": 0
 		},
 		"actions": [
 			{
 				"state": 1,
-				"id": 0
+				"id": "ROOM"
 			},
 			{
 				"state": 0,
