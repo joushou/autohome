@@ -1,14 +1,13 @@
 #!/usr/bin/python2.7
-
-import datetime
-import time
-import threading
+from __future__ import print_function
+from time import mktime, time, sleep
+from threading import Thread
 import json
-import pprint
-from dateutil.rrule import *
-import serial
+from dateutil.rrule import rrule, DAILY
+from serial import Serial
 
 eventFile = "eventProtocol.json"
+serfile   = '/dev/ttyUSB0'
 
 A       = 3
 B       = 2
@@ -17,23 +16,21 @@ D       = 0
 EXT     = 127
 
 def switcher(id, state):
-        ser.write(chr(state<<7|id))
+   ser.write(chr(state<<7|id))
 
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+ser = Serial(serfile, 9600, timeout=1)
 
-
-class eventScheduler(threading.Thread):
+class eventScheduler(Thread):
 	def run(self):
 		self.internalList = []
 		self.reloadEvents()
 
 		while True:
-			self.handleEvents()
-			next = self.nextEvent()
+			next = self.handleEvents()
 			if next < 60:
-				time.sleep(next+1)
+				sleep(next)
 			else:
-				time.sleep(60)
+				sleep(60)
 
 	def reloadEvents(self):
 		with open(eventFile) as f:
@@ -45,24 +42,21 @@ class eventScheduler(threading.Thread):
 
 	def createEvent(self, event):
 		return { "event": event,
-					"datetime": rrule(DAILY, count=1, byhour=event['time']['hours'], byminute=event['time']['minutes'], bysecond=0)[0]}
-
-	def nextEvent(self):
-		secs = 0
-		for event in self.internalList:
-			temp = (event['datetime'] - datetime.datetime.now()).seconds
-			if temp > secs:
-				secs = temp
-		return secs
+					"timestamp": mktime(rrule(DAILY, count=1, byhour=event['time']['hours'], byminute=event['time']['minutes'], bysecond=0)[0].timetuple())}
 
 	def handleEvents(self):
 		tmp = self.internalList
+		next = 0
 		for idx, event in enumerate(tmp):
-			if event['datetime'] < datetime.datetime.now() + datetime.timedelta(seconds=1):
-				print('Executing event', event['event']['name'])
-				for el in event['actions']:
+			t = event['timestamp'] - time()
+			if t <= 0:
+				print('Executing', event['event']['name'])
+				for el in event['event']['actions']:
 					switcher(el['id'], el['state'])
 				self.internalList[idx] = self.createEvent(event['event'])
+			elif t > next:
+				next = t
+		return next+1
 
 scheduler = eventScheduler()
-scheduler.start()
+scheduler.run()
