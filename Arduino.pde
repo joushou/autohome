@@ -6,14 +6,18 @@ void clearStates() {
 }
 
 void switcher(boolean state, int row) {
-  clearStates();
-  pinMode((state)?3:2, OUTPUT);
-  digitalWrite((state)?3:2, LOW);
-  pinMode(row+4, OUTPUT);
-  digitalWrite(row+4, LOW);
-  delay(300);
-  clearStates();
-  delay(300);
+  if(!(row^0x7F)){
+    digitalWrite(13, state?HIGH:LOW);
+  } else {
+    clearStates();
+    pinMode((state)?3:2, OUTPUT);
+    digitalWrite((state)?3:2, LOW);
+    pinMode(row+4, OUTPUT);
+    digitalWrite(row+4, LOW);
+    delay(300);
+    clearStates();
+    delay(300);
+  }
 }
 
 void setup() {
