@@ -3,6 +3,7 @@ void clearStates() {
     pinMode(i, INPUT);
     digitalWrite(i, LOW);
   }
+  pinMode(13, OUTPUT);
 }
 
 void switcher(boolean state, int row) {
