@@ -6,15 +6,14 @@ import json
 from dateutil.rrule import rrule, DAILY
 from serial import Serial
 import SocketServer, socket
+from sys import argv
 
-eventFile = "eventProtocol.json"
-serfile   = '/dev/tty.usbmodem1411'
+serfile = argv[1]
+eventFile = argv[2]
+listenPort = int(argv[3])
 
 # If client has not send any data after this number of secs, connection is closed.
 requestTimeout = 1
-
-# TCP port to listen on
-listenPort = 9993
 
 def switcher(id, state):
    ser.write(chr(state<<7|id))
