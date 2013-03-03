@@ -100,6 +100,7 @@ class eventScheduler(Thread):
 		return next+1
 
 scheduler = eventScheduler()
+scheduler.daemon = True
 scheduler.start()
 
 commands = {
