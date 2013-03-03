@@ -1,0 +1,19 @@
+[
+	{
+		"name": "TestEvent",
+		"time": {
+			"hours": 19,
+			"minutes": 45
+		},
+		"actions": [
+			{
+				"state": 1,
+				"id": 0
+			},
+			{
+				"state": 1,
+				"id": 3
+			}
+		]
+	}
+]
