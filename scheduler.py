@@ -25,6 +25,13 @@ EXT     = 127
 def switcher(id, state):
    ser.write(chr(state<<7|id))
 
+def allOff():
+	switcher(A,0)
+	switcher(B,0)
+	switcher(C,0)
+	switcher(D,0)
+	switcher(EXT,0)
+
 ser = Serial(serfile, 9600, timeout=1)
 
 class eventScheduler(Thread):
@@ -92,7 +99,8 @@ class TCPHandler(SocketServer.BaseRequestHandler):
 			"B_OFF": lambda: switcher(B, 0),
 			"C_OFF": lambda: switcher(C, 0),
 			"D_OFF": lambda: switcher(D, 0),
-			"EXT_OFF": lambda: switcher(EXT, 0)
+			"EXT_OFF": lambda: switcher(EXT, 0),
+			"ALL_OFF": lambda: allOff()
 		}
 		parts[0] = parts[0].upper()
 		if parts[0] in commands:
