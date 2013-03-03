@@ -29,7 +29,7 @@ automators = {
 
 def allOff():
 	for i in automators:
-		i.off()
+		automators[i].off()
 
 class eventScheduler(Thread):
 	def run(self):
