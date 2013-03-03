@@ -8,11 +8,14 @@ from serial import Serial
 from SocketServer import BaseRequestHandler, TCPServer
 from socket import timeout
 from sys import argv
-from automated import Automated, AutoSartano
+from automated import Automated, AutoSartano, AutoHue
 
 serfile = argv[1]
 eventFile = argv[2]
 listenPort = int(argv[3])
+if len(argv) > 4:
+	hue_ip = argv[4]
+	hue_key = argv[5]
 
 ser = Serial(serfile, 9600, timeout=1)
 
@@ -24,6 +27,7 @@ automators = {
 	'B': AutoSartano(2, switcher),
 	'C': AutoSartano(1, switcher),
 	'D': AutoSartano(0, switcher),
+	'ROOM': AutoHue(hue_ip, hue_key, 2),
 	'EXT': AutoSartano(127, switcher)
 }
 
@@ -75,46 +79,28 @@ scheduler = eventScheduler()
 scheduler.daemon = True
 scheduler.start()
 
-commands = {
-	"A_ON": lambda: automators['A'].on(),
-	"B_ON": lambda: automators['B'].on(),
-	"C_ON": lambda: automators['C'].on(),
-	"D_ON": lambda: automators['D'].on(),
-	"EXT_ON": lambda: automators['EXT'].on(),
-	"A_OFF": lambda: automators['A'].off(),
-	"B_OFF": lambda: automators['B'].off(),
-	"C_OFF": lambda: automators['C'].off(),
-	"D_OFF": lambda: automators['D'].off(),
-	"EXT_OFF": lambda: automators['EXT'].off(),
-	"ALL_OFF": lambda: allOff()
-}
-
 class TCPHandler(BaseRequestHandler):
 	def parseData(self, data):
-		parts = data.split(':')
-
-		setOptions = []
-		returnString = ""
-
-		for element in parts:
-			subparts = element.split('=')
-			if len(subparts) == 2:
-				options[subparts[0]] = subparts[1]
-				if subparts[0] not in setOptions:
-					setOptions.append(subparts[0])
-
-		parts[0] = parts[0].upper()
-		if parts[0] in commands:
-			returnString = commands[parts[0]]()
+		part = data.partition('_')
+		if part[0] == 'ALL':
+			for i in automators:
+				if part[2] == 'ON':
+					automators[i].on()
+				else:
+					automators[i].off()
+		elif part[0] in automators:
+			if part[2] == 'ON':
+				automators[part[0]].on()
+			elif part[2] == 'OFF':
+				automators[part[0]].off()
+			else:
+				try:
+					automators[part[0]].dim(int(part[2]))
+				except:
+					pass
+			return 'OK\n'
 		else:
-			returnString = "INVALID"
-
-		if not returnString:
-			returnString = "OK"
-
-		for i in setOptions:
-			returnString += ":" + i + "=" + options[i]
-		return returnString + "\n"
+			return 'ERROR\n'
 
 	def handle(self):
 		self.request.settimeout(1)
