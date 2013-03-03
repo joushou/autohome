@@ -6,14 +6,27 @@ import threading
 import json
 import pprint
 from dateutil.rrule import *
+import serial
 
 eventFile = "eventProtocol.json"
+
+A       = 3
+B       = 2
+C       = 1
+D       = 0
+EXT     = 127
+
+def switcher(id, state):
+        ser.write(chr(state<<7|id))
+
+ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+
 
 class eventScheduler(threading.Thread):
 	def run(self):
 		self.internalList = []
 		self.reloadEvents()
-		
+
 		while 1:
 			self.handleEvents()
 			next = self.nextEvent()
@@ -48,6 +61,9 @@ class eventScheduler(threading.Thread):
 		for idx, event in enumerate(self.internalList):
 			if event['datetime'] < datetime.datetime.now() + datetime.timedelta(seconds=1):
 				print "Executing event " + event['event']['name']
+
+				for el in event['actions']:
+					switcher(el['id'], el['state'])
 				self.internalList.pop(idx)
 				self.updateEvent(event['event'])
 
