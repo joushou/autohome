@@ -56,6 +56,10 @@ automators = {
 	'EXT': AutoSartano(127)
 }
 
+def allOff():
+	for i in automators:
+		i.off()
+
 class eventScheduler(Thread):
 	def run(self):
 		self.internalList = []
@@ -109,7 +113,8 @@ commands = {
 	"B_OFF": lambda: automators['B'].off(),
 	"C_OFF": lambda: automators['C'].off(),
 	"D_OFF": lambda: automators['D'].off(),
-	"EXT_OFF": lambda: automators['EXT'].off()
+	"EXT_OFF": lambda: automators['EXT'].off(),
+	"ALL_OFF": lambda: allOff()
 }
 
 class TCPHandler(SocketServer.BaseRequestHandler):
