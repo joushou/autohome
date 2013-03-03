@@ -1,58 +1,30 @@
 #!/usr/bin/python2.7
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 from time import mktime, time, sleep
 from threading import Thread
-import json
+from json import loads
 from dateutil.rrule import rrule, DAILY
 from serial import Serial
-import SocketServer, socket
+from SocketServer import BaseRequestHandler, TCPServer
+from socket import timeout
 from sys import argv
+from automated import Automated, AutoSartano
 
 serfile = argv[1]
 eventFile = argv[2]
 listenPort = int(argv[3])
 
-# If client has not send any data after this number of secs, connection is closed.
-requestTimeout = 1
+ser = Serial(serfile, 9600, timeout=1)
 
 def switcher(id, state):
    ser.write(chr(state<<7|id))
 
-ser = Serial(serfile, 9600, timeout=1)
-
-class Automated(object):
-	def __init__(self):
-		pass
-
-	def on(self):
-		return NotImplemented
-
-	def off(self):
-		return NotImplemented
-
-	def set_state(self, s):
-		if s == 1 or s == True:
-			self.on()
-		else:
-			self.off()
-
-class AutoSartano(Automated):
-	def __init__(self, d):
-		super(AutoSartano, self).__init__()
-		self.d = d
-
-	def on(self):
-		switcher(self.d, True)
-
-	def off(self):
-		switcher(self.d, False)
-
 automators = {
-	'A': AutoSartano(3),
-	'B': AutoSartano(2),
-	'C': AutoSartano(1),
-	'D': AutoSartano(0),
-	'EXT': AutoSartano(127)
+	'A': AutoSartano(3, switcher),
+	'B': AutoSartano(2, switcher),
+	'C': AutoSartano(1, switcher),
+	'D': AutoSartano(0, switcher),
+	'EXT': AutoSartano(127, switcher)
 }
 
 def allOff():
@@ -73,7 +45,7 @@ class eventScheduler(Thread):
 
 	def reloadEvents(self):
 		with open(eventFile) as f:
-			self.events = json.loads(f.read())
+			self.events = loads(f.read())
 		self.internalList = []
 
 		for el in self.events:
@@ -117,7 +89,7 @@ commands = {
 	"ALL_OFF": lambda: allOff()
 }
 
-class TCPHandler(SocketServer.BaseRequestHandler):
+class TCPHandler(BaseRequestHandler):
 	def parseData(self, data):
 		parts = data.split(':')
 
@@ -145,20 +117,20 @@ class TCPHandler(SocketServer.BaseRequestHandler):
 		return returnString + "\n"
 
 	def handle(self):
-		self.request.settimeout(requestTimeout)
+		self.request.settimeout(1)
 		print("Connection from " + self.client_address[0])
 		try:
 			self.data = self.request.recv(1024).strip()
 			print ("{} wrote:".format(self.client_address[0]))
 			print (self.data)
 			self.request.sendall(self.parseData(self.data))
-		except socket.timeout:
+		except timeout:
 			self.request.sendall("TIMEOUT\n")
 
 	def finish(self):
 		print("Connection closed")
 
-SocketServer.TCPServer.allow_reuse_address = True
-server = SocketServer.TCPServer(('0.0.0.0', listenPort), TCPHandler)
+TCPServer.allow_reuse_address = True
+server = TCPServer(('0.0.0.0', listenPort), TCPHandler)
 
 server.serve_forever()
