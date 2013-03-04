@@ -35,7 +35,7 @@ class AutoHue(Automated):
 		self.key = key
 		self.n = n
 
-	def set_state(self, w):
+	def send(self, w):
 		url = 'http://'+self.ip+'/api/'+self.key+'/lights/'+str(self.n)+'/state'
 		data = dumps(w)
 		opener = urllib2.build_opener(urllib2.HTTPHandler)
@@ -46,10 +46,10 @@ class AutoHue(Automated):
 		return url.read()
 
 	def on(self):
-		self.set_state({'on': True})
+		self.send({'on': True})
 
 	def off(self):
-		self.set_state({'on': False})
+		self.send({'on': False})
 
 	def dim(self, s):
-		self.set_state({'on': True, 'bri': int(s*2.54)})
+		self.send({'on': True, 'bri': int(s*2.54)})
