@@ -69,7 +69,7 @@ class eventScheduler(Thread):
 			if t <= 0:
 				print('Executing', event['event']['name'])
 				for el in event['event']['actions']:
-					automators[event['id']].set_state(el['state'])
+					automators[el['id']].set_state(el['state'])
 				self.internalList[idx] = self.createEvent(event['event'])
 			elif t > next:
 				next = t
