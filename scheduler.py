@@ -11,35 +11,23 @@ from sys import argv
 from automated import Automated, AutoSartano, AutoHue
 
 serfile = argv[1]
-eventFile = argv[2]
-listenPort = int(argv[3])
-if len(argv) > 4:
-	hue_ip = argv[4]
-	hue_key = argv[5]
+hwfile = argv[2]
+eventFile = argv[3]
+listenPort = int(argv[4])
 
 ser = Serial(serfile, 9600, timeout=1)
-
 def switcher(id, state):
    ser.write(chr(state<<7|id))
 
-automators = {
-	'A': AutoSartano(3, switcher),
-	'B': AutoSartano(2, switcher),
-	'C': AutoSartano(1, switcher),
-	'D': AutoSartano(0, switcher),
-	'EXT': AutoSartano(127, switcher)
-}
+automators = {}
 
-try:
-	automators.update({
-		'ROOM': AutoHue(hue_ip, hue_key, 2)
-	})
-except NameError:
-	pass
-
-def allOff():
-	for i in automators:
-		automators[i].off()
+with open(hwfile) as f:
+	x = loads(f.read())
+for i in x:
+	if i['type'] == 'AutoSartano':
+		automators[i['name']] = AutoSartano(i['params']['id'], switcher)
+	if i['type'] == 'AutoHue':
+		automators[i['name']] = AutoHue(**i['params'])
 
 class eventScheduler(Thread):
 	def run(self):
@@ -48,10 +36,10 @@ class eventScheduler(Thread):
 
 		while True:
 			next = self.handleEvents()
-			if next < 60:
+			if next < 600:
 				sleep(next)
 			else:
-				sleep(60)
+				sleep(600)
 
 	def reloadEvents(self):
 		with open(eventFile) as f:
