@@ -30,6 +30,11 @@ automators = {
 	'EXT': AutoSartano(127, switcher)
 }
 
+if hue_ip and hue_key:
+	automators.update({
+		'ROOM': AutoHue(hue_ip, hue_key, 2)
+	})
+
 def allOff():
 	for i in automators:
 		automators[i].off()
