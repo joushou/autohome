@@ -27,7 +27,6 @@ automators = {
 	'B': AutoSartano(2, switcher),
 	'C': AutoSartano(1, switcher),
 	'D': AutoSartano(0, switcher),
-	'ROOM': AutoHue(hue_ip, hue_key, 2),
 	'EXT': AutoSartano(127, switcher)
 }
 
