@@ -3,7 +3,7 @@
 		"name": "TestEvent",
 		"time": {
 			"hours": 1,
-			"minutes": 3
+			"minutes": 4
 		},
 		"actions": [
 			{
