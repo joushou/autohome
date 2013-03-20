@@ -14,10 +14,9 @@ hwfile = argv[2]
 eventFile = argv[3]
 listenPort = int(argv[4])
 
-# ser = Serial(serfile, 9600, timeout=1)
+ser = Serial(serfile, 9600, timeout=1)
 def switcher(id, state):
-	pass
-#    ser.write(chr(state<<7|id))
+   ser.write(chr(state<<7|id))
 
 automators = {}
 
