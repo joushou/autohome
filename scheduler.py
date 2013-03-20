@@ -1,116 +1,241 @@
 #!/usr/bin/python2.7
 from __future__ import print_function, absolute_import
-from time import mktime, time, sleep
-from threading import Thread
-from json import loads
-from dateutil.rrule import rrule, DAILY
+from threading import Thread, Event
+from json import loads, dumps
+from datetime import date, datetime, timedelta
 from serial import Serial
-from SocketServer import BaseRequestHandler, TCPServer
-from socket import timeout
-from sys import argv
-from automated import Automated, AutoSartano, AutoHue
+from socket import timeout, socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR, SO_KEEPALIVE
+from socket import error as sock_error
+from select import poll, POLLPRI, POLLIN, POLLHUP, POLLERR
+from select import error as sel_error
 
-serfile = argv[1]
-hwfile = argv[2]
-eventFile = argv[3]
-listenPort = int(argv[4])
+listenPort = 9993
 
-ser = Serial(serfile, 9600, timeout=1)
-def switcher(id, state):
-   ser.write(chr(state<<7|id))
+class eventInfo(object):
+	def __init__(self, reached=False, new_delta=0, skew=0):
+		self.reached = reached
+		self.delta = new_delta
+		self.skew = skew
 
-automators = {}
+class event(object):
+	def __init__(self, _time=None, t='', _id=0):
+		self.time   = _time
+		self.cur    = datetime.now()
+		self.dtime  = self.cur
+		self.id     = _id
+		self.recalc = self.__getattribute__('_'+t)
 
-with open(hwfile) as f:
-	x = loads(f.read())
-for i in x:
-	if i['type'] == 'AutoSartano':
-		automators[i['name']] = AutoSartano(i['params']['id'], switcher)
-	if i['type'] == 'AutoHue':
-		automators[i['name']] = AutoHue(**i['params'])
+	def __str__(self):
+		return "<event %s %s>" % (str(self.time), self.op)
+
+	def _every(self, new):
+		if new >= self.dtime:
+			old = self.dtime
+			self.dtime = self.cur
+			while self.dtime < new:
+				self.dtime += self.time
+			return eventInfo(True, self.dtime - new, old - new)
+		else:
+			return eventInfo(False, self.dtime - new)
+
+	def _daily(self, new):
+		if new > self.time:
+			old = self.time
+			self.time += timedelta(days=1)
+			return eventInfo(True, self.time - new, old - new)
+		else:
+			return eventInfo(False, self.time - new)
+
+	def _reg_daily(self, new):
+		if new > self.time:
+			old = self.time
+			if new.isoweekday() < 5:
+				self.time += timedelta(days=1)
+			else:
+				self.time += timedelta(days=8-new.isoweekday())
+			return eventInfo(True, self.time - new, old - new)
+		else:
+			return eventInfo(False, self.time - new)
 
 class eventScheduler(Thread):
-	def run(self):
-		self.internalList = []
-		self.reloadEvents()
+	def __init__(self):
+		super(eventScheduler, self).__init__()
+		self.wait_event = Event()
+		self.event_list = []
+		self.event_id = 0
+		self.listeners = []
 
+	def wake(self):
+		self.wait_event.set()
+
+	def listen(self, cb):
+		self.listeners.append(cb)
+
+	def unlisten(self, cb):
+		self.listeners.remove(cb)
+
+	def run(self):
 		while True:
 			next = self.handleEvents()
-			if next < 600:
-				sleep(next)
+			if next == None: # No events, just sleep
+				next = 600
 			else:
-				sleep(600)
+				next = next.total_seconds()
+			print('%d event(s) queued, next wake-up: %fs' % (len(self.event_list), next))
+			self.wait_event.wait(next)
+			self.wait_event.clear()
 
-	def reloadEvents(self):
-		with open(eventFile) as f:
-			self.events = loads(f.read())
-		self.internalList = []
+	def clearEvent(self, _id):
+		x = self.event_list
+		for i in x:
+			if i.id == _id:
+				self.event_list.remove(i)
+				self.wake()
+				return True
+		else:
+			return False
 
-		for el in self.events:
-			print('New event:', el)
-			self.internalList.append(self.createEvent(el))
+	def getNewID(self):
+		self.event_id += 1
+		return self.event_id
 
 	def createEvent(self, event):
-		return { "event": event,
-					"timestamp": mktime(rrule(DAILY, count=1, byhour=event['time']['hours'], byminute=event['time']['minutes'], bysecond=0)[0].timetuple())}
+		self.event_list.append(event)
+		self.wake()
+		return event
 
 	def handleEvents(self):
-		tmp = self.internalList
-		cur = time()
-		next = 0
-		for idx, event in enumerate(tmp):
-			t = event['timestamp'] - cur
-			if t <= 0:
-				print('Executing', event['event']['name'])
-				for el in event['event']['actions']:
-					automators[el['id']].set_state(el['state'])
-				self.internalList[idx] = self.createEvent(event['event'])
-			elif t > next:
-				next = t
-		return next+1
+		cur = datetime.now()
+		next = None
+		x = self.event_list
+		for ev in x:
+			t = ev.recalc(cur)
+			if t.reached:
+				print('Raising event %d, %fs overdue' % (ev.id, t.skew.total_seconds()))
+				for i in self.listeners:
+					i(ev.id)
+
+			if t.delta == 0:
+				self.event_list.remove(ev)
+			elif next == None or t.delta < next:
+				next = t.delta
+		return next
 
 scheduler = eventScheduler()
 scheduler.daemon = True
 scheduler.start()
 
-class TCPHandler(BaseRequestHandler):
-	def parseData(self, data):
-		part = data.partition('_')
-		if part[0] == 'ALL':
-			for i in automators:
-				if part[2] == 'ON':
-					automators[i].on()
+#  Everything below this line is the network handling,
+#  which is rather... weird at the moment.
+########################################################
+
+op_keywords = ['cancel', 'register']
+arg_keywords = ['relative', 'id', 'type']
+timing_keywords = ['year', 'month','day', 'hour', 'minute', 'second', 'microsecond']
+
+class RequestObject(object):
+	def __init__(self, conn):
+		self.conn = conn
+
+	def init(self):
+		def cb(_id):
+			self.conn.sendall(bytes(dumps({'raising':_id}), encoding='utf-8'))
+		self.cb = cb
+		scheduler.listen(self.cb)
+
+	def receive(self):
+		d = self.conn.recv(10240)
+		if d == b'':
+			return False
+		print(d)
+		d = loads(d.decode('utf-8'))
+		absolute = 'relative' not in d or not d['relative']
+		timing = datetime.now().replace(second=0, microsecond=0) if absolute else timedelta(seconds=0)
+
+		op = ''
+		args = {}
+		for i in d:
+			if i in timing_keywords:
+				if absolute:
+					x = {str(i):d[i]}
+					timing = timing.replace(**x)
 				else:
-					automators[i].off()
-		elif part[0] in automators:
-			if part[2] == 'ON':
-				automators[part[0]].on()
-			elif part[2] == 'OFF':
-				automators[part[0]].off()
+					x = {str(i)+'s':d[i]}
+					timing += timedelta(**x)
+			elif i in op_keywords:
+				op = i
+			elif i in arg_keywords:
+				args[i] = d[i]
 			else:
-				try:
-					automators[part[0]].dim(int(part[2]))
-				except:
-					pass
-			return 'OK\n'
-		else:
-			return 'ERROR\n'
+				self.request.sendall(dumps({'error': 'unknown key: %s' % str(i)}))
+				return False
 
-	def handle(self):
-		self.request.settimeout(1)
-		print("Connection from " + self.client_address[0])
-		try:
-			self.data = self.request.recv(1024).strip()
-			print ("{} wrote:".format(self.client_address[0]))
-			print (self.data)
-			self.request.sendall(self.parseData(self.data))
-		except timeout:
-			self.request.sendall("TIMEOUT\n")
+		if op == 'register':
+			_id = scheduler.getNewID()
+			scheduler.createEvent(event(timing, t=args['type'], _id=_id))
+			self.conn.sendall(bytes(dumps({'id': _id}), encoding='utf-8'))
+		elif op == 'cancel':
+			self.conn.sendall(bytes(dumps({'success': scheduler.clearEvent(args['id'])}), encoding='utf-8'))
+		return True
 
-	def finish(self):
-		print("Connection closed")
+	def destroy(self):
+		scheduler.unlisten(self.cb)
 
-TCPServer.allow_reuse_address = True
-server = TCPServer(('0.0.0.0', listenPort), TCPHandler)
+class RunnableServer(object):
+	def execute(self):
 
-server.serve_forever()
+		servsock = socket(AF_INET, SOCK_STREAM)
+		servsock.setblocking(0)
+		servsock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+		servsock.setsockopt(SOL_SOCKET, SO_KEEPALIVE, 1)
+		servsock.settimeout(None)
+
+		servfdmap = {servsock.fileno(): servsock}
+		clients = {}
+
+		servpoll = poll()
+		pollin, pollpri, pollhup, pollerr = POLLIN, POLLPRI, POLLHUP, POLLERR
+
+		def terminate(fd):
+			clients[fd].destroy()
+			servpoll.unregister(servfdmap[fd])
+			del clients[fd]
+			del servfdmap[fd]
+
+		servsock.bind(("0.0.0.0", 9993))
+		servsock.listen(40)
+
+		servpoll.register(servsock, pollin | pollpri | pollhup | pollerr)
+
+		while True:
+			try:
+				events = servpoll.poll()
+				for fd,flags in events:
+					mappedfd = servfdmap[fd]
+
+					if flags & pollin or flags & pollpri:
+						if mappedfd is servsock:
+							connection, client_address = mappedfd.accept()
+							fileno = connection.fileno()
+							servfdmap[fileno] = connection
+							servpoll.register(connection, pollin | pollpri | pollhup | pollerr)
+
+							clients[fileno] = RequestObject(connection)
+							clients[fileno].init()
+
+						else:
+							try:
+								if not clients[fd].receive():
+									terminate(fd)
+							except sock_error:
+								terminate(fd)
+					elif flags & pollhup or flags & pollerr:
+						if mappedfd is servsock:
+							raise RuntimeError("Server socket broken")
+						else:
+							terminate(fd)
+			except sel_error:
+				pass
+
+a = RunnableServer()
+a.execute()
