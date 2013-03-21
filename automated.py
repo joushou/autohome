@@ -1,6 +1,6 @@
 class Automated(object):
 	def __init__(self):
-		pass
+		self.state = 'off'
 
 	def on(self):
 		return NotImplemented
