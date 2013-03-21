@@ -1,13 +1,16 @@
 #!/usr/bin/python2.7
 from __future__ import print_function, absolute_import
 from datetime import datetime
-from json import loads, dumps
 from serial import Serial
-from SocketServer import BaseRequestHandler, TCPServer
-from socket import timeout
+from json import loads
 from sys import argv
 from automated import Automated, AutoSartano, AutoHue, AutoLG
 from scheduler import eventScheduler, event
+from stackable.stackable import StackableError
+from stackable.network import StackableSocket, StackablePacketAssembler
+from stackable.utils import StackableJSON
+from stackable.stack import Stack
+from runnable.network import RunnableServer, RequestObject
 
 serfile = argv[1]
 hwfile = argv[2]
@@ -84,49 +87,40 @@ class AutoHome(object):
 
 auto = AutoHome(serfile, hwfile, eventFile)
 
-class TCPHandler(BaseRequestHandler):
-	def parseData(self, data):
-		part = data.partition('_')
-		if part[2] == 'ON':
-			auto.on(part[0])
-		elif part[2] == 'OFF':
-			auto.off(part[0])
-		else:
-			auto.dim(part[0], int(part[2]))
+class Connection(RequestObject):
+	def init(self):
+		self.stack = Stack((StackableSocket(sock=self.conn),
+		                   StackablePacketAssembler(),
+		                   StackableJSON()))
 
-	def parseJSON(self, data):
-		a = loads(data)
+	def parse(self, a):
 		if 'op' in a:
 			if a['op'] == 'list':
 				x = auto.list()
 				y = {}
 				for i in x:
 					y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
-				return dumps(y)
+				return y
 			elif a['op'] == 'on':
 				auto.on(a['name'])
-				return dumps({'status': 'ok'})
+				return {'status': 'ok'}
 			elif a['op'] == 'off':
 				auto.off(a['name'])
-				return dumps({'status': 'ok'})
-		return dumps({'status': 'error'})
+				return {'status': 'ok'}
+		return {'status': 'error'}
 
-	def handle(self):
-		self.request.settimeout(1)
-		print("[AUTOMATOR] Connection from " + self.client_address[0])
+	def destroy(self):
+		self.stack.close()
+		del self.stack
+
+	def receive(self):
 		try:
-			self.data = self.request.recv(10240)
-			print ("[AUTOMATOR] {} wrote:".format(self.client_address[0]))
-			print (self.data)
-			self.request.sendall(self.parseJSON(self.data))
-		except timeout:
-			self.request.sendall("TIMEOUT\n")
-
-	def finish(self):
-		print("[AUTOMATOR] Connection closed")
-
-
-TCPServer.allow_reuse_address = True
-server = TCPServer(('0.0.0.0', listenPort), TCPHandler)
-
-server.serve_forever()
+			obj = self.stack.poll()
+			if obj != None:
+				print("[AUTOMATOR] Received:", obj)
+				self.stack.write(parse(obj))
+			return True
+		except StackableError:
+			return False
+a = RunnableServer({'reqObj': Connection, 'port': listenPort})
+a.execute()
