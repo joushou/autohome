@@ -110,15 +110,18 @@ class Connection(RequestObject):
 		return {'status': 'error'}
 
 	def destroy(self):
-		self.stack.close()
-		del self.stack
+		try:
+			self.stack.close()
+			del self.stack
+		except:
+			pass
 
 	def receive(self):
 		try:
 			obj = self.stack.poll()
 			if obj != None:
 				print("[AUTOMATOR] Received:", obj)
-				self.stack.write(self.parse(obj))
+				self.stack.write(self.gparse(obj))
 			return True
 		except StackableError:
 			return False
