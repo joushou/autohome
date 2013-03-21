@@ -121,7 +121,7 @@ class Connection(RequestObject):
 			obj = self.stack.poll()
 			if obj != None:
 				print("[AUTOMATOR] Received:", obj)
-				self.stack.write(self.gparse(obj))
+				self.stack.write(self.parse(obj))
 			return True
 		except StackableError:
 			return False
