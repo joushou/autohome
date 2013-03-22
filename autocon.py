@@ -38,6 +38,7 @@ class AutoHome(object):
 				i.state = 'on'
 		else:
 			self.automators[key].on()
+			self.automators[key].state = 'on'
 
 	def off(self, key):
 		if key == 'ALL':
@@ -46,6 +47,7 @@ class AutoHome(object):
 				i.state = 'off'
 		else:
 			self.automators[key].off()
+			self.automators[key].state = 'off'
 
 	def dim(self, key, dim):
 		self.automators[key].dim(dim)
