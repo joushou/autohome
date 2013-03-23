@@ -36,7 +36,7 @@ class AutoHome(object):
 		return self.events
 
 	def broadcastStatus(self):
-		x = auto.list()
+		x = auto.listAutomators()
 		y = {}
 		for i in x:
 			y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
