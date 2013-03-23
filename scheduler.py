@@ -122,7 +122,7 @@ class eventScheduler(Thread):
 		for ev in x:
 			t = ev.recalc(cur)
 			if t.reached:
-				print('[SCHEDULER] Raising event %d, %fs overdue' % (ev.id, t.skew.total_seconds()))
+				print('[SCHEDULER] Raising event %d, %fs overdue' % (ev.id, abs(t.skew.total_seconds())))
 				for i in self.listeners:
 					i(ev.id)
 
