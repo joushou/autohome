@@ -1,9 +1,9 @@
 #!/usr/bin/python2.7
 from __future__ import print_function, absolute_import
 from datetime import datetime
-from serial import Serial
 from json import loads
 from sys import argv
+from serial import Serial
 from automated import Automated, AutoSartano, AutoHue, AutoLG
 from scheduler import eventScheduler, event
 from stackable.stackable import StackableError
@@ -24,12 +24,16 @@ class AutoHome(object):
 		s.eventfile = eventfile
 		s.automators = {}
 		s.events = []
+		s.actions = {}
 		s.scheduler = eventScheduler()
 		s.prepare()
 		s.loadEvents()
 
-	def list(self):
+	def listAutomators(self):
 		return self.automators
+
+	def listEvents(self):
+		return self.events
 
 	def broadcastStatus(self):
 		x = auto.list()
@@ -80,22 +84,24 @@ class AutoHome(object):
 			self.automators[i['name']].type = i['type']
 
 		def handleEvent(_id):
-			for i in self.events:
-				if i['id'] == _id:
-					for action in i['actions']:
-						print('[AUTOMATOR] Setting state of %s to %s' % (action['id'], action['state']))
-						self.automators[action['id']].set_state(action['state'])
-						self.broadcastStatus()
-					break
+			if _id not in self.actions: return
+
+			for action in self.actions[_id]['actions']:
+				print('[AUTOMATOR] Setting state of %s to %s' % (action['id'], action['state']))
+				self.automators[action['id']].set_state(action['state'])
+				self.broadcastStatus()
 		self.scheduler.listen(handleEvent)
 
 	def loadEvents(self):
 		with open(self.eventfile) as f:
-			self.events = loads(f.read())
-		for i in self.events:
+			fevents = loads(f.read())
+		for i in fevents:
 			timing = datetime.now().replace(hour=i['time']['hours'], minute=i['time']['minutes'], second=0, microsecond=0)
-			i['id'] = self.scheduler.getNewID()
-			self.scheduler.createEvent(event(timing, t='daily', _id=i['id']))
+			_id = self.scheduler.getNewID()
+			e = event(timing, t='daily', _id=_id)
+			self.events.append(e)
+			self.actions[_id] = i
+			self.scheduler.createEvent(e)
 
 auto = AutoHome(serfile, hwfile, eventFile)
 
@@ -114,11 +120,21 @@ class Connection(RequestObject):
 	def parse(self, a):
 		if 'op' in a:
 			if a['op'] == 'list':
-				x = auto.list()
+				x = auto.listAutomators()
 				y = {}
 				for i in x:
 					y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
 				return {'type': 'deviceState', 'payload': y }
+			elif a['op'] == 'events':
+				x = auto.listEvents()
+				y = {}
+				for i in x:
+					t = i.time
+					if type(t) == datetime: # Only return absolute stuff for now...
+						y[i.id] = {'type': i.type, 'year':t.year,'month':t.month,'day':t.day,'hour': t.hour,'minute':t.minute,'second':t.second}
+					else:
+						y[i.id] = {'type': i.type}
+				return {'type': 'eventState', 'payload': y}
 			elif a['op'] == 'on':
 				auto.on(a['name'])
 				return {'type':'info', 'payload': {'status': 'ok'}}
