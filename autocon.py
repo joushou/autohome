@@ -31,6 +31,13 @@ class AutoHome(object):
 	def list(self):
 		return self.automators
 
+	def broadcastStatus(self):
+		x = auto.list()
+		y = {}
+		for i in x:
+			y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
+		pushToAll({'type': 'deviceState', 'payload': y})
+
 	def on(self, key):
 		if key == 'ALL':
 			for i in self.automators:
@@ -39,6 +46,7 @@ class AutoHome(object):
 		else:
 			self.automators[key].on()
 			self.automators[key].state = 'on'
+		self.broadcastStatus()
 
 	def off(self, key):
 		if key == 'ALL':
@@ -48,6 +56,7 @@ class AutoHome(object):
 		else:
 			self.automators[key].off()
 			self.automators[key].state = 'off'
+		self.broadcastStatus()
 
 	def dim(self, key, dim):
 		self.automators[key].dim(dim)
@@ -76,6 +85,7 @@ class AutoHome(object):
 					for action in i['actions']:
 						print('[AUTOMATOR] Setting state of %s to %s' % (action['id'], action['state']))
 						self.automators[action['id']].set_state(action['state'])
+						self.broadcastStatus()
 					break
 		self.scheduler.listen(handleEvent)
 
@@ -107,8 +117,8 @@ class Connection(RequestObject):
 				x = auto.list()
 				y = {}
 				for i in x:
-					y[x[i].name] = {'type': 'deviceState', 'payload': {'type': x[i].type, 'state': x[i].state}}
-				return y
+					y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
+				return {'type': 'deviceState', 'payload': y }
 			elif a['op'] == 'on':
 				auto.on(a['name'])
 				return {'type':'info', 'payload': {'status': 'ok'}}
