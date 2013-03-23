@@ -89,11 +89,17 @@ class AutoHome(object):
 
 auto = AutoHome(serfile, hwfile, eventFile)
 
+clients = []
+def pushToAll(d):
+	for i in clients:
+		i.write(d)
+
 class Connection(RequestObject):
 	def init(self):
 		self.stack = Stack((StackableSocket(sock=self.conn),
 		                   StackablePacketAssembler(),
 		                   StackableJSON()))
+		clients.append(self.stack)
 
 	def parse(self, a):
 		if 'op' in a:
@@ -113,6 +119,7 @@ class Connection(RequestObject):
 
 	def destroy(self):
 		try:
+			clients.remove(self.stack)
 			self.stack.close()
 			del self.stack
 		except:
