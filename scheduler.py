@@ -24,8 +24,10 @@ class event(object):
 		self.time   = _time
 		self.cur    = datetime.now()
 		self.dtime  = self.cur
+		self.last   = None
 		self.id     = _id
 		self.args   = args
+		self.type   = t
 		self.recalc = self.__getattribute__(t)
 
 	def __str__(self):
@@ -37,6 +39,7 @@ class event(object):
 			self.dtime = self.cur
 			while self.dtime < new:
 				self.dtime += self.time
+			self.last = datetime.now()
 			return eventInfo(True, self.dtime - new, old - new)
 		else:
 			return eventInfo(False, self.dtime - new)
@@ -45,6 +48,7 @@ class event(object):
 		if new > self.time:
 			old = self.time
 			self.time += timedelta(days=1)
+			self.last = datetime.now()
 			return eventInfo(True, self.time - new, old - new)
 		else:
 			return eventInfo(False, self.time - new)
@@ -56,6 +60,7 @@ class event(object):
 				self.time += timedelta(days=1)
 			else:
 				self.time += timedelta(days=8-new.isoweekday())
+			self.last = datetime.now()
 			return eventInfo(True, self.time - new, old - new)
 		else:
 			return eventInfo(False, self.time - new)
