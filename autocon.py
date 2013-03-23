@@ -101,15 +101,15 @@ class Connection(RequestObject):
 				x = auto.list()
 				y = {}
 				for i in x:
-					y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
+					y[x[i].name] = {'type': 'deviceState', 'payload': {'type': x[i].type, 'state': x[i].state}}
 				return y
 			elif a['op'] == 'on':
 				auto.on(a['name'])
-				return {'status': 'ok'}
+				return {'type':'info', 'payload': {'status': 'ok'}}
 			elif a['op'] == 'off':
 				auto.off(a['name'])
-				return {'status': 'ok'}
-		return {'status': 'error'}
+				return {'type':'info', 'payload': {'status': 'ok'}}
+		return {'type':'info', 'payload': {'status': 'error'}}
 
 	def destroy(self):
 		try:
