@@ -41,8 +41,8 @@ class AutoHome(object):
 	def on(self, key):
 		if key == 'ALL':
 			for i in self.automators:
-				i.on()
-				i.state = 'on'
+				self.automators[i].on()
+				self.automators[i].state = 'on'
 		else:
 			self.automators[key].on()
 			self.automators[key].state = 'on'
@@ -51,8 +51,8 @@ class AutoHome(object):
 	def off(self, key):
 		if key == 'ALL':
 			for i in self.automators:
-				i.off()
-				i.state = 'off'
+				self.automators[i].off()
+				self.automators[i].state = 'off'
 		else:
 			self.automators[key].off()
 			self.automators[key].state = 'off'
