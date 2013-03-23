@@ -35,6 +35,9 @@ class AutoHome(object):
 	def listEvents(self):
 		return self.events
 
+	def listActions(self, _id):
+		return self.actions[_id]
+
 	def broadcastStatus(self):
 		x = auto.listAutomators()
 		y = {}
@@ -116,6 +119,7 @@ class Connection(RequestObject):
 		                   StackablePacketAssembler(),
 		                   StackableJSON()))
 		clients.append(self.stack)
+		auto.broadcastStatus()
 
 	def parse(self, a):
 		if 'op' in a:
@@ -127,13 +131,14 @@ class Connection(RequestObject):
 				return {'type': 'deviceState', 'payload': y }
 			elif a['op'] == 'events':
 				x = auto.listEvents()
-				y = {}
+				y = []
 				for i in x:
 					t = i.time
+					k = auto.listActions(i.id)
 					if type(t) == datetime: # Only return absolute stuff for now...
-						y[i.id] = {'type': i.type, 'year':t.year,'month':t.month,'day':t.day,'hour': t.hour,'minute':t.minute,'second':t.second}
+						y.append({'name': k['name'], 'id': i.id, 'type': i.type, 'year':t.year,'month':t.month,'day':t.day,'hour': t.hour,'minute':t.minute,'second':t.second})
 					else:
-						y[i.id] = {'type': i.type}
+						y.append({'name': k['name'], 'id': i.id, 'type': i.type})
 				return {'type': 'eventState', 'payload': y}
 			elif a['op'] == 'on':
 				auto.on(a['name'])
