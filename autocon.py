@@ -117,7 +117,10 @@ auto = AutoHome(serfile, hwfile, eventFile)
 clients = []
 def pushToAll(d):
 	for i in clients:
-		i.write(d)
+		try:
+			i.stack.write(d)
+		except StackableError:
+			i.destroy()
 
 class Connection(RequestObject):
 	def init(self):
