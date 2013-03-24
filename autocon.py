@@ -69,6 +69,12 @@ class AutoHome(object):
 		self.automators[key].dim(dim)
 		self.automators[key].state = dim
 
+	def disableEvent(self, _id):
+		self.scheduler.disableEvent(_id)
+
+	def enableEvent(self, _id):
+		self.scheduler.enableEvent(_id)
+
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
 		def switcher(_id, state):
