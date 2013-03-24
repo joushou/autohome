@@ -96,6 +96,24 @@ class eventScheduler(Thread):
 			self.wait_event.wait(next)
 			self.wait_event.clear()
 
+	def disableEvent(self, _id):
+		for i in self.event_list:
+			if i.id == _id:
+				i.active = False
+				self.wake()
+				return True
+		else:
+			return False
+
+	def enableEvent(self, _id):
+		for i in self.event_list:
+			if i.id == _id:
+				i.active = True
+				self.wake()
+				return True
+		else:
+			return False
+
 	def clearEvent(self, _id):
 		x = self.event_list
 		for i in x:
