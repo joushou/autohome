@@ -20,6 +20,7 @@ class eventInfo(object):
 		self.skew = skew
 
 class event(object):
+	event_dispatcher = 'scheduler'
 	def __init__(self, _time=None, t='', args=None, _id=0):
 		self.time   = _time
 		self.cur    = datetime.now()
@@ -89,49 +90,28 @@ class eventScheduler(Thread):
 	def run(self):
 		while True:
 			next = self.handleEvents()
-			if next == None: # No events, just sleep
-				next = 600
-			else:
+			if next != None:
 				next = next.total_seconds()
-			print('[SCHEDULER] %d event(s) queued, next wake-up: %fs' % (len(self.event_list), next))
+				print('[SCHEDULER] %d event(s) queued, next wake-up: %fs' % (len(self.event_list), next))
+			else:
+				print('[SCHEDULER] No events queued, waiting for condition.')
 			self.wait_event.wait(next)
 			self.wait_event.clear()
 
-	def disableEvent(self, _id):
-		for i in self.event_list:
-			if i.id == _id:
-				i.active = False
-				self.wake()
-				return True
-		else:
-			return False
+	def disableEvent(self, ev):
+		ev.active = False
 
-	def enableEvent(self, _id):
-		for i in self.event_list:
-			if i.id == _id:
-				i.active = True
-				self.wake()
-				return True
-		else:
-			return False
+	def enableEvent(self, ev):
+		ev.active = True
 
-	def clearEvent(self, _id):
-		x = self.event_list
-		for i in x:
-			if i.id == _id:
-				self.event_list.remove(i)
-				self.wake()
-				return True
-		else:
-			return False
-
-	def getNewID(self):
-		self.event_id += 1
-		return self.event_id
+	def clearEvent(self, ev):
+		self.event_list.remove(ev)
 
 	def createEvent(self, event):
 		self.event_list.append(event)
 		self.wake()
+		self.event_id += 1
+		event.id = self.event_id
 		return event
 
 	def handleEvents(self):
@@ -146,7 +126,7 @@ class eventScheduler(Thread):
 			if t.reached:
 				print('[SCHEDULER] Raising event %d, %fs overdue' % (ev.id, abs(t.skew.total_seconds())))
 				for i in self.listeners:
-					i(ev.id)
+					i(ev)
 
 			if t.delta == 0:
 				self.event_list.remove(ev)
