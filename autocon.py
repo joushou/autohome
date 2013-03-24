@@ -136,10 +136,16 @@ class Connection(RequestObject):
 					t = i.time
 					k = auto.listActions(i.id)
 					if type(t) == datetime: # Only return absolute stuff for now...
-						y.append({'name': k['name'], 'id': i.id, 'type': i.type, 'year':t.year,'month':t.month,'day':t.day,'hour': t.hour,'minute':t.minute,'second':t.second})
+						y.append({'active': i.active, 'name': k['name'], 'id': i.id, 'type': i.type, 'year':t.year,'month':t.month,'day':t.day,'hour': t.hour,'minute':t.minute,'second':t.second})
 					else:
-						y.append({'name': k['name'], 'id': i.id, 'type': i.type})
+						y.append({'active': i.active, 'name': k['name'], 'id': i.id, 'type': i.type})
 				return {'type': 'eventState', 'payload': y}
+			elif a['op'] == 'disable_event':
+				auto.disableEvent(a['id'])
+				return {'type': 'info', 'payload': {'status': 'ok'}}
+			elif a['op'] == 'enable_event':
+				auto.enableEvent(a['id'])
+				return {'type': 'info', 'payload': {'status': 'ok'}}
 			elif a['op'] == 'on':
 				auto.on(a['name'])
 				return {'type':'info', 'payload': {'status': 'ok'}}
