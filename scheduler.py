@@ -139,6 +139,9 @@ class eventScheduler(Thread):
 		next = None
 		x = self.event_list
 		for ev in x:
+			if not ev.active:
+				continue
+
 			t = ev.recalc(cur)
 			if t.reached:
 				print('[SCHEDULER] Raising event %d, %fs overdue' % (ev.id, abs(t.skew.total_seconds())))
