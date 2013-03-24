@@ -8,8 +8,11 @@ class Automated(object):
 	def off(self):
 		return NotImplemented
 
+	def check(self):
+		return NotImplemented
+
 	def set_state(self, s):
-		if s == 1 or s == True:
+		if s == 'on' or s == 1 or s == True:
 			self.on()
 		else:
 			self.off()
