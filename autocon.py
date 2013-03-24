@@ -168,7 +168,7 @@ class Connection(RequestObject):
 				elif p['infoType'] == 'events':
 					evs = []
 					for i in auto.events:
-						y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event_dispatcher}
+						y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher}
 						y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
 						evs.append(y)
 					return {'type': 'eventState', 'payload': evs}
