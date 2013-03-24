@@ -1,18 +1,19 @@
 [
 	{
 		"name": "TestEvent",
-		"time": {
-			"hours": 0,
-			"minutes": 11
+		"event_dispatcher": "scheduler",
+		"parameters": {
+			"hour": 21,
+			"minute": 13,
+			"second": 0,
+			"rec": "daily",
+			"days": [1, 2, 3, 4, 5]
 		},
-		"actions": [
+		"triggers": [
 			{
-				"state": 1,
-				"id": "ROOM"
-			},
-			{
-				"state": 1,
-				"id": "D"
+				"name": "amp",
+				"state": "on",
+				"restore": false
 			}
 		]
 	}
