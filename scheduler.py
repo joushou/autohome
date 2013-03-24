@@ -28,6 +28,7 @@ class event(object):
 		self.id     = _id
 		self.args   = args
 		self.type   = t
+		self.active = True
 		self.recalc = self.__getattribute__(t)
 
 	def __str__(self):
