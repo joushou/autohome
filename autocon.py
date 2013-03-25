@@ -10,12 +10,14 @@ from stackable.stackable import StackableError
 from stackable.network import StackableSocket, StackablePacketAssembler
 from stackable.utils import StackableJSON
 from stackable.stack import Stack
-from runnable.network import RunnableServer, RequestObject
 
 serfile = argv[1]
 hwfile = argv[2]
 eventFile = argv[3]
-listenPort = int(argv[4])
+server = argv[4]
+serverPort = int(argv[5])
+
+stack = None
 
 class AutoEvent(object):
 	def __init__(self, name, event, triggers):
@@ -48,7 +50,8 @@ class AutoHome(object):
 		y = {}
 		for i in x:
 			y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
-		pushToAll({'type': 'deviceState', 'payload': y})
+		if stack != None:
+			stack.write({'type': 'deviceState', 'payload': y})
 
 	def on(self, key):
 		if key == 'ALL':
@@ -135,86 +138,58 @@ class AutoHome(object):
 		aev = AutoEvent(name, ev, triggers)
 		self.events.append(aev)
 
-
-
 auto = AutoHome(serfile, hwfile, eventFile)
 
-clients = []
-def pushToAll(d):
-	for i in clients:
-		try:
-			i.stack.write(d)
-		except StackableError:
-			i.destroy()
+def parse(a):
+	if 'type' in a:
+		p = a['payload']
+		if a['type'] == 'info':
+			if p['infoType'] == 'toggles':
+				x = auto.listAutomators()
+				y = {}
+				for i in x:
+					y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
+				return {'type': 'deviceState', 'payload': y }
+			elif p['infoType'] == 'events':
+				evs = []
+				for i in auto.events:
+					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher}
+					y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
+					evs.append(y)
+				return {'type': 'eventState', 'payload': evs}
 
-class Connection(RequestObject):
-	def init(self):
-		self.stack = Stack((StackableSocket(sock=self.conn),
-		                   StackablePacketAssembler(),
-		                   StackableJSON()))
-		clients.append(self)
-		auto.broadcastStatus()
+		elif a['type'] == 'register_event':
+			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
+			return {'type': 'info', 'payload': {'status': 'ok'}}
+		elif a['type'] == 'update_event':
+			auto.clearEvent(p['name'])
+			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
+			return {'type': 'info', 'payload': {'status': 'ok'}}
+		elif a['type'] == 'remove_event':
+			auto.clearEvent(p['name'])
+			return {'type': 'info', 'payload': {'status': 'ok'}}
 
-	def parse(self, a):
-		if 'type' in a:
-			p = a['payload']
-			if a['type'] == 'info':
-				if p['infoType'] == 'toggles':
-					x = auto.listAutomators()
-					y = {}
-					for i in x:
-						y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
-					return {'type': 'deviceState', 'payload': y }
-				elif p['infoType'] == 'events':
-					evs = []
-					for i in auto.events:
-						y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher}
-						y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
-						evs.append(y)
-					return {'type': 'eventState', 'payload': evs}
+		elif a['type'] == 'disable_event':
+			auto.disableEvent(p['name'])
+			return {'type': 'info', 'payload': {'status': 'ok'}}
+		elif a['type'] == 'enable_event':
+			auto.enableEvent(p['name'])
+			return {'type': 'info', 'payload': {'status': 'ok'}}
+		elif a['type'] == 'on':
+			auto.on(p['name'])
+			return {'type':'info', 'payload': {'status': 'ok'}}
+		elif a['type'] == 'off':
+			auto.off(p['name'])
+			return {'type':'info', 'payload': {'status': 'ok'}}
+	return {'type':'info', 'payload': {'status': 'error'}}
 
-			elif a['type'] == 'register_event':
-				auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
-				return {'type': 'info', 'payload': {'status': 'ok'}}
-			elif a['type'] == 'update_event':
-				auto.clearEvent(p['name'])
-				auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
-				return {'type': 'info', 'payload': {'status': 'ok'}}
-			elif a['type'] == 'remove_event':
-				auto.clearEvent(p['name'])
-				return {'type': 'info', 'payload': {'status': 'ok'}}
-
-			elif a['type'] == 'disable_event':
-				auto.disableEvent(p['name'])
-				return {'type': 'info', 'payload': {'status': 'ok'}}
-			elif a['type'] == 'enable_event':
-				auto.enableEvent(p['name'])
-				return {'type': 'info', 'payload': {'status': 'ok'}}
-
-			elif a['type'] == 'on':
-				auto.on(p['name'])
-				return {'type':'info', 'payload': {'status': 'ok'}}
-			elif a['type'] == 'off':
-				auto.off(p['name'])
-				return {'type':'info', 'payload': {'status': 'ok'}}
-		return {'type':'info', 'payload': {'status': 'error'}}
-
-	def destroy(self):
-		try:
-			clients.remove(self)
-			self.stack.close()
-			del self.stack
-		except:
-			pass
-
-	def receive(self):
-		try:
-			obj = self.stack.poll()
-			if obj != None:
-				print("[AUTOMATOR] Received:", obj)
-				self.stack.write(self.parse(obj))
-			return True
-		except StackableError:
-			return False
-a = RunnableServer({'reqObj': Connection, 'port': listenPort})
-a.execute()
+while 1:
+	try:
+		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[(0x0b,0x00,0xb1,0xe5)]), StackableJSON()))
+		stack.write({})
+		while 1:
+			y = stack.read()
+			x = parse(y)
+			stack.write(parse(stack.read()))
+	except StackableError:
+		pass
