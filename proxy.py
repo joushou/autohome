@@ -76,7 +76,7 @@ a = RunnableServer({'reqObj': BackendConnection, 'port': 9995})
 b = RunnableServer({'reqObj': FrontendConnection, 'port': 9994})
 
 at = Thread(target=a.execute)
-bt = Thread(target=b.execute)
-
+at.daemon = True
 at.start()
-bt.start()
+
+b.execute()
