@@ -16,6 +16,7 @@ hwfile = argv[2]
 eventFile = argv[3]
 server = argv[4]
 serverPort = int(argv[5])
+magic = (int(argv[6], 16), int(argv[7], 16), int(argv[8], 16), int(argv[9], 16))
 
 stack = None
 
@@ -185,7 +186,7 @@ def parse(a):
 
 while 1:
 	try:
-		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[(0x0b,0x00,0xb1,0xe5)]), StackableJSON()))
+		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[magic]), StackableJSON()))
 		stack.write({})
 		while 1:
 			y = stack.read()
