@@ -189,8 +189,6 @@ while 1:
 		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[magic]), StackableJSON()))
 		stack.write({})
 		while 1:
-			y = stack.read()
-			x = parse(y)
 			stack.write(parse(stack.read()))
 	except StackableError:
 		pass
