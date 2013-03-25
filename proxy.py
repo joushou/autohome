@@ -10,7 +10,7 @@ magics = {}
 class BackendConnection(RequestObject):
 	def init(self):
 		print('[B] New connection')
-		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler()))
+		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
 		self.mgc = None
 		self.listeners = []
 
@@ -45,7 +45,7 @@ class BackendConnection(RequestObject):
 class FrontendConnection(RequestObject):
 	def init(self):
 		print('[F] New Connection')
-		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler()))
+		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
 
 	def write(self, hdr, obj):
 		if hdr not in magics: raise StackableError('No such backend')
