@@ -31,7 +31,7 @@ class BackendConnection(RequestObject):
 				if self.mgc == None:
 					self.mgc = self.stack[1].hdr
 					print('[B] Identified new magic:', self.mgc)
-					self.stack[1].magics = [self.mgc]
+					self.stack[1].sndhdr = self.mgc
 					magics[self.mgc] = self
 				x = self.listeners
 				for ix in x:
@@ -52,7 +52,7 @@ class FrontendConnection(RequestObject):
 		if hdr not in magics: raise StackableError('No such backend')
 		if self.stack not in magics[hdr].listeners:
 			magics[hdr].listeners.append(self.stack)
-			self.stack[1].magics = [hdr]
+			self.stack[1].sndhdr = hdr
 
 		magics[hdr].write(obj)
 
