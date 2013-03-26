@@ -11,6 +11,7 @@ from stackable.network import StackableSocket, StackablePacketAssembler
 from stackable.utils import StackableJSON
 from stackable.stack import Stack
 from time import sleep
+import traceback
 
 serfile = argv[1]
 hwfile = argv[2]
@@ -119,10 +120,7 @@ class AutoHome(object):
 			for aev in self.events:
 				if aev.event is ev:
 					for trigger in aev.triggers:
-						if trigger['state'] == 'on':
-							self.on(trigger['name'])
-						elif trigger['state'] == 'off':
-							self.off(trigger['name'])
+						self.automators[trigger['name']].set_state(trigger['state'])
 					break
 			self.broadcastStatus()
 		self.scheduler.listen(handleEvent)
@@ -144,6 +142,7 @@ class AutoHome(object):
 
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
+
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
 		if dispatcher == 'scheduler':
@@ -207,4 +206,5 @@ while 1:
 		while 1:
 			stack.write(parse(stack.read()))
 	except:
+		traceback.print_exc()
 		sleep(5)
