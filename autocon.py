@@ -119,7 +119,10 @@ class AutoHome(object):
 			for aev in self.events:
 				if aev.event is ev:
 					for trigger in aev.triggers:
-						self.automators[trigger['name']].set_state(trigger['state'])
+						if trigger['state'] == 'on':
+							self.on(trigger['name'])
+						elif trigger['state'] == 'off':
+							self.off(trigger['name'])
 					break
 			self.broadcastStatus()
 		self.scheduler.listen(handleEvent)
@@ -141,7 +144,6 @@ class AutoHome(object):
 
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
-
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
 		if dispatcher == 'scheduler':
