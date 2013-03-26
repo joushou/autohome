@@ -10,6 +10,7 @@ from stackable.stackable import StackableError
 from stackable.network import StackableSocket, StackablePacketAssembler
 from stackable.utils import StackableJSON
 from stackable.stack import Stack
+from time import sleep
 
 serfile = argv[1]
 hwfile = argv[2]
@@ -190,5 +191,5 @@ while 1:
 		stack.write({})
 		while 1:
 			stack.write(parse(stack.read()))
-	except StackableError:
-		pass
+	except:
+		sleep(5)
