@@ -46,7 +46,7 @@ class BackendConnection(RequestObject):
 
 				x = magics[self.mgc]
 				for ix in x:
-					if ix != self:
+					if ix is not self:
 						try:
 							print("[B] ("+str(self.ip)+"->"+str(ix.ip)+"):\t", obj)
 							ix.write(obj)
