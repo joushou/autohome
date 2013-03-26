@@ -56,28 +56,37 @@ class AutoHome(object):
 			stack.write({'type': 'deviceState', 'payload': y})
 
 	def on(self, key):
-		if key == 'ALL':
-			for i in self.automators:
-				self.automators[i].on()
-				self.automators[i].state = 'on'
-		else:
-			self.automators[key].on()
-			self.automators[key].state = 'on'
+		try:
+			if key == 'ALL':
+				for i in self.automators:
+					self.automators[i].on()
+					self.automators[i].state = 'on'
+			else:
+				self.automators[key].on()
+				self.automators[key].state = 'on'
+		except ValueError:
+			pass
 		self.broadcastStatus()
 
 	def off(self, key):
-		if key == 'ALL':
-			for i in self.automators:
-				self.automators[i].off()
-				self.automators[i].state = 'off'
-		else:
-			self.automators[key].off()
-			self.automators[key].state = 'off'
+		try:
+			if key == 'ALL':
+				for i in self.automators:
+					self.automators[i].off()
+					self.automators[i].state = 'off'
+			else:
+				self.automators[key].off()
+				self.automators[key].state = 'off'
+		except ValueError:
+			pass
 		self.broadcastStatus()
 
 	def dim(self, key, dim):
-		self.automators[key].dim(dim)
-		self.automators[key].state = dim
+		try:
+			self.automators[key].dim(dim)
+			self.automators[key].state = dim
+		except ValueError:
+			pass
 
 	def disableEvent(self, _id):
 		self.scheduler.disableEvent(_id)
