@@ -11,6 +11,7 @@ from stackable.network import StackableSocket, StackablePacketAssembler
 from stackable.utils import StackableJSON
 from stackable.stack import Stack
 from time import sleep
+import traceback
 
 serfile = argv[1]
 hwfile = argv[2]
@@ -89,10 +90,14 @@ class AutoHome(object):
 			pass
 
 	def disableEvent(self, _id):
-		self.scheduler.disableEvent(_id)
+		for i in self.events:
+			if i.name == _id:
+				self.scheduler.disableEvent(i.event)
 
 	def enableEvent(self, _id):
-		self.scheduler.enableEvent(_id)
+		for i in self.events:
+			if i.name == _id:
+				self.scheduler.enableEvent(i.event)
 
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
@@ -119,6 +124,7 @@ class AutoHome(object):
 							self.on(trigger['name'])
 						elif trigger['state'] == 'off':
 							self.off(trigger['name'])
+
 					break
 			self.broadcastStatus()
 		self.scheduler.listen(handleEvent)
@@ -140,6 +146,7 @@ class AutoHome(object):
 
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
+
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
 		if dispatcher == 'scheduler':
@@ -166,7 +173,7 @@ def parse(a):
 			elif p['infoType'] == 'events':
 				evs = []
 				for i in auto.events:
-					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher}
+					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
 					y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
 					evs.append(y)
 				return {'type': 'eventState', 'payload': evs}
@@ -203,4 +210,5 @@ while 1:
 		while 1:
 			stack.write(parse(stack.read()))
 	except:
+		traceback.print_exc()
 		sleep(5)
