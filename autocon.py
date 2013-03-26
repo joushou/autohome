@@ -89,10 +89,14 @@ class AutoHome(object):
 			pass
 
 	def disableEvent(self, _id):
-		self.scheduler.disableEvent(_id)
+		for i in self.events:
+			if i.name == _id:
+				self.scheduler.disableEvent(i.event)
 
 	def enableEvent(self, _id):
-		self.scheduler.enableEvent(_id)
+		for i in self.events:
+			if i.name == _id:
+				self.scheduler.enableEvent(i.event)
 
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
@@ -164,7 +168,7 @@ def parse(a):
 			elif p['infoType'] == 'events':
 				evs = []
 				for i in auto.events:
-					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher}
+					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
 					y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
 					evs.append(y)
 				return {'type': 'eventState', 'payload': evs}

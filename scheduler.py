@@ -87,12 +87,18 @@ class eventScheduler(Thread):
 	def unlisten(self, cb):
 		self.listeners.remove(cb)
 
+	def activeEvents(self):
+		active = 0
+		for ev in self.event_list:
+			if ev.active: active+=1
+		return active
+
 	def run(self):
 		while True:
 			next = self.handleEvents()
 			if next != None:
 				next = next.total_seconds()
-				print('[SCHEDULER] %d event(s) queued, next wake-up: %fs' % (len(self.event_list), next))
+				print('[SCHEDULER] %d event(s) queued, next wake-up: %fs' % (self.activeEvents(), next))
 			else:
 				print('[SCHEDULER] No events queued, waiting for condition.')
 			self.wait_event.wait(next)
@@ -100,9 +106,11 @@ class eventScheduler(Thread):
 
 	def disableEvent(self, ev):
 		ev.active = False
+		self.wake()
 
 	def enableEvent(self, ev):
 		ev.active = True
+		self.wake()
 
 	def clearEvent(self, ev):
 		self.event_list.remove(ev)
