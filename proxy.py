@@ -9,18 +9,21 @@ magics = {}
 
 class BackendConnection(RequestObject):
 	def init(self):
-		print('[B] New connection')
+		self.ip = self.conn.getpeername()[0]
+		print('[B] New connection:\t\t', self.ip)
 		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
 		self.mgc = None
-		self.listeners = []
 
 	def write(self, obj):
 		self.stack.write(obj)
 
 	def destroy(self):
 		try:
+			print('[B] Closing connection:\t\t', self.ip)
 			self.stack.close()
-			del magics[self.mgc]
+			magics[self.mgc].remove(self)
+			if len(magics[self.mgc]) == 0:
+				del magics[self.mgc]
 		except:
 			pass
 
@@ -29,54 +32,29 @@ class BackendConnection(RequestObject):
 			obj = self.stack.poll()
 			if obj != None:
 				if self.mgc == None:
-					self.mgc = self.stack[1].hdr
-					print('[B] Identified new magic:', self.mgc)
-					self.stack[1].sndhdr = self.mgc
-					magics[self.mgc] = self
-				x = self.listeners
+					k = self.stack[1]
+					self.mgc = k.hdr
+					k.sndhdr = self.mgc
+					k.magics = [self.mgc]
+					k.acceptAllMagic = False
+
+					if self.mgc not in magics:
+						magics[self.mgc] = []
+
+					print('[B] Magic identified:\t\t', self.mgc, "for:", self.ip)
+					magics[self.mgc].append(self)
+
+				x = magics[self.mgc]
 				for ix in x:
-					try:
-						ix.write(obj)
-					except StackableError:
-						self.listeners.remove(ix)
+					if ix != self:
+						try:
+							print("[B] ("+str(self.ip)+"->"+str(ix.ip)+"):\t", obj)
+							ix.write(obj)
+						except StackableError:
+							ix.destroy()
+							magics[self.mgc].remove(ix)
 			return True
 		except StackableError:
 			return False
 
-class FrontendConnection(RequestObject):
-	def init(self):
-		print('[F] New Connection')
-		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
-
-	def write(self, hdr, obj):
-		if hdr not in magics: raise StackableError('No such backend')
-		if self.stack not in magics[hdr].listeners:
-			magics[hdr].listeners.append(self.stack)
-			self.stack[1].sndhdr = hdr
-
-		magics[hdr].write(obj)
-
-	def destroy(self):
-		try:
-			self.stack.close()
-			magics[hdr].listeners.remove(self.stack)
-		except:
-			pass
-
-	def receive(self):
-		try:
-			obj = self.stack.poll()
-			if obj != None:
-				self.write(self.stack[1].hdr, obj)
-			return True
-		except StackableError:
-			return False
-
-a = RunnableServer({'reqObj': BackendConnection, 'port': 9995})
-b = RunnableServer({'reqObj': FrontendConnection, 'port': 9994})
-
-at = Thread(target=a.execute)
-at.daemon = True
-at.start()
-
-b.execute()
+RunnableServer({'reqObj': BackendConnection, 'port': 9995}).execute()
