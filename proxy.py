@@ -10,7 +10,7 @@ magics = {}
 class BackendConnection(RequestObject):
 	def init(self):
 		self.ip = self.conn.getpeername()[0]
-		print('[B] New connection:\t\t', self.ip)
+		print('[B] New connection:\t\t\t', self.ip)
 		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
 		self.mgc = None
 
@@ -19,7 +19,7 @@ class BackendConnection(RequestObject):
 
 	def destroy(self):
 		try:
-			print('[B] Closing connection:\t\t', self.ip)
+			print('[B] Closing connection:\t\t\t', self.ip)
 			self.stack.close()
 			magics[self.mgc].remove(self)
 			if len(magics[self.mgc]) == 0:
@@ -41,7 +41,7 @@ class BackendConnection(RequestObject):
 					if self.mgc not in magics:
 						magics[self.mgc] = []
 
-					print('[B] Magic identified:\t\t', self.mgc, "for:", self.ip)
+					print('[B] Magic identified:\t\t\t', self.mgc, "for:\t", self.ip)
 					magics[self.mgc].append(self)
 
 				x = magics[self.mgc]
