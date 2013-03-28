@@ -167,7 +167,7 @@ def parse(a):
 		if a['type'] == 'info':
 			if p['infoType'] == 'toggles':
 				auto.broadcastStatus()
-				return None
+				return {'type': 'info', 'payload': {'status': 'ok'}}
 			elif p['infoType'] == 'events':
 				evs = []
 				for i in auto.events:
