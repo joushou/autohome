@@ -203,7 +203,7 @@ def parse(a):
 
 while 1:
 	try:
-		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[magic]), StackablePoker(), StackableJSON()))
+		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[magic]), StackableJSON()))
 		stack.write({})
 		while 1:
 			stack.write(parse(stack.read()))
