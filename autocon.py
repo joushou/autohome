@@ -56,31 +56,33 @@ class AutoHome(object):
 		if stack != None:
 			stack.write({'type': 'deviceState', 'payload': y})
 
+	def broadcastState(self, s):
+		if stack != None:
+			stack.write({'type': 'deviceState', 'payload': {'type': s.type, 'state': s.state}})
+
 	def on(self, key):
 		try:
 			if key == 'ALL':
 				for i in self.automators:
 					self.automators[i].on()
-					self.automators[i].state = 'on'
+				self.broadcastStatus()
 			else:
 				self.automators[key].on()
-				self.automators[key].state = 'on'
+				self.broadcastState(self.automators[key])
 		except ValueError:
 			pass
-		self.broadcastStatus()
 
 	def off(self, key):
 		try:
 			if key == 'ALL':
 				for i in self.automators:
 					self.automators[i].off()
-					self.automators[i].state = 'off'
+				self.broadcastStatus()
 			else:
 				self.automators[key].off()
-				self.automators[key].state = 'off'
+				self.broadcastState(self.automators[key])
 		except ValueError:
 			pass
-		self.broadcastStatus()
 
 	def dim(self, key, dim):
 		try:
@@ -124,9 +126,8 @@ class AutoHome(object):
 							self.on(trigger['name'])
 						elif trigger['state'] == 'off':
 							self.off(trigger['name'])
-
+						self.broadcastState(self.automators[trigger['name']])
 					break
-			self.broadcastStatus()
 		self.scheduler.listen(handleEvent)
 
 	def loadEvents(self):
@@ -165,11 +166,8 @@ def parse(a):
 		p = a['payload']
 		if a['type'] == 'info':
 			if p['infoType'] == 'toggles':
-				x = auto.listAutomators()
-				y = {}
-				for i in x:
-					y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
-				return {'type': 'deviceState', 'payload': y }
+				auto.broadcastStatus()
+				return None
 			elif p['infoType'] == 'events':
 				evs = []
 				for i in auto.events:
