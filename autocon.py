@@ -50,15 +50,15 @@ class AutoHome(object):
 
 	def broadcastStatus(self):
 		x = auto.listAutomators()
-		y = {}
+		y = []
 		for i in x:
-			y[x[i].name] = {'type': x[i].type, 'state': x[i].state}
+			y.append({'type': x[i].type, 'state': x[i].state, 'name': x[i].name})
 		if stack != None:
 			stack.write({'type': 'deviceState', 'payload': y})
 
 	def broadcastState(self, s):
 		if stack != None:
-			stack.write({'type': 'partialDeviceState', 'payload': {s.name: {'type': s.type, 'state': s.state}}})
+			stack.write({'type': 'partialDeviceState', 'payload': {'type': s.type, 'state': s.state, 'name': s.name}})
 
 	def on(self, key):
 		try:
