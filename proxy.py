@@ -52,11 +52,11 @@ class BackendConnection(RequestObject):
 							print("[B] ("+str(self.ip)+"->"+str(ix.ip)+"):\t", obj)
 							ix.write(obj)
 						except StackableError,e:
-							print("[B] Terminating", ix.ip, ":", e)
+							print("[B] ("+str(ix.ip)+") Terminating:\t", e)
 							ix.destroy()
 			return True
 		except StackableError,e:
-			print("[B] Terminating", self.ip, ":", e)
+			print("[B] ("+str(self.ip)+") Terminating:\t", e)
 			return False
 
 RunnableServer({'reqObj': BackendConnection, 'port': 9995}).execute()
