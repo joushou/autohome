@@ -8,7 +8,7 @@ from automated import Automated, AutoSartano, AutoHue, AutoLG
 from scheduler import eventScheduler, event
 from stackable.stackable import StackableError
 from stackable.network import StackableSocket, StackablePacketAssembler
-from stackable.utils import StackableJSON
+from stackable.utils import StackableJSON, StackablePoker
 from stackable.stack import Stack
 from time import sleep
 import traceback
@@ -205,7 +205,7 @@ def parse(a):
 
 while 1:
 	try:
-		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[magic]), StackableJSON()))
+		stack = Stack((StackableSocket(ip=server, port=serverPort), StackablePacketAssembler(magics=[magic]), StackablePoker(), StackableJSON()))
 		stack.write({})
 		while 1:
 			stack.write(parse(stack.read()))
