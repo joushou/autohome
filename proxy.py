@@ -12,7 +12,7 @@ class BackendConnection(RequestObject):
 	def init(self):
 		self.ip = self.conn.getpeername()[0]
 		print('[B] New connection:\t\t\t', self.ip)
-		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True),StackablePoker()))
+		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
 		self.mgc = None
 
 	def write(self, obj):
