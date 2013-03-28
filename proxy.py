@@ -53,7 +53,6 @@ class BackendConnection(RequestObject):
 							ix.write(obj)
 						except StackableError:
 							ix.destroy()
-							magics[self.mgc].remove(ix)
 			return True
 		except StackableError:
 			return False
