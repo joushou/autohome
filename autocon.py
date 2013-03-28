@@ -58,7 +58,7 @@ class AutoHome(object):
 
 	def broadcastState(self, s):
 		if stack != None:
-			stack.write({'type': 'deviceState', 'payload': {'type': s.type, 'state': s.state}})
+			stack.write({'type': 'partialDeviceState', 'payload': {'type': s.type, 'state': s.state}})
 
 	def on(self, key):
 		try:
