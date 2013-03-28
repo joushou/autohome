@@ -24,35 +24,41 @@ class AutoSartano(Automated):
 		self.s = s
 
 	def on(self):
+		self.state = 'on'
 		self.s(self.d, True)
 
 	def off(self):
+		self.state = 'off'
 		self.s(self.d, False)
 
 from serial import Serial
 class AutoLG(Automated):
-        def __init__(self, serialPort):
-                self.functions = {
-                        "dtv": "xb 00 00\x0D",
-                        "hdmi1": "xb 00 90\x0D",
-                        "hdmi2": "xb 00 91\x0D",
-                        "4:3": "kc 00 01\x0D",
-                        "justscan": "kc 00 09\x0D",
-                        "reasonableVolume": "kf 00 05\x0D"
-                }
-                super(AutoLG, self).__init__()
-                self.ser = Serial(serialPort, 9600, timeout=1)
-        def hasFunction(self, cmd):
-                if cmd in self.functions:
-                        return True
-                else:
-                        return False
-        def on(self):
-                self.ser.write("ka 00 01\x0D")
-        def off(self):
-                self.ser.write("ka 00 00\x0D")
-        def custom(self, cmd):
-                self.ser.write(self.functions[cmd])
+	def __init__(self, serialPort):
+		self.functions = {
+			"dtv": "xb 00 00\x0D",
+			"hdmi1": "xb 00 90\x0D",
+			"hdmi2": "xb 00 91\x0D",
+			"4:3": "kc 00 01\x0D",
+			"justscan": "kc 00 09\x0D",
+			"reasonableVolume": "kf 00 05\x0D"
+		}
+		super(AutoLG, self).__init__()
+		self.ser = Serial(serialPort, 9600, timeout=1)
+
+	def hasFunction(self, cmd):
+		if cmd in self.functions:
+			return True
+		else:
+			return False
+
+	def on(self):
+		self.state = 'on'
+		self.ser.write("ka 00 01\x0D")
+	def off(self):
+		self.state = 'off'
+		self.ser.write("ka 00 00\x0D")
+	def custom(self, cmd):
+		self.ser.write(self.functions[cmd])
 
 import urllib2
 from json import dumps
@@ -74,9 +80,11 @@ class AutoHue(Automated):
 		return url.read()
 
 	def on(self):
+		self.state = 'on'
 		self.send({'on': True})
 
 	def off(self):
+		self.state = 'off'
 		self.send({'on': False})
 
 	def dim(self, s):
