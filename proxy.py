@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import, unicode_literals, division
 from runnable.network import RunnableServer, RequestObject
 from stackable.network import StackableSocket, StackablePacketAssembler
+from stackable.utils import StackablePoker
 from stackable.stack import Stack
 from stackable.stackable import StackableError
 from threading import Thread
@@ -11,7 +12,7 @@ class BackendConnection(RequestObject):
 	def init(self):
 		self.ip = self.conn.getpeername()[0]
 		print('[B] New connection:\t\t\t', self.ip)
-		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True)))
+		self.stack = Stack((StackableSocket(sock=self.conn),StackablePacketAssembler(acceptAllMagic=True),StackablePoker()))
 		self.mgc = None
 
 	def write(self, obj):
