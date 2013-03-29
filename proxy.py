@@ -23,8 +23,6 @@ class BackendConnection(RequestObject):
 			print('[B] Closing connection:\t\t\t', self.ip)
 			self.stack.close()
 			magics[self.mgc].remove(self)
-			if len(magics[self.mgc]) == 0:
-				del magics[self.mgc]
 		except:
 			pass
 
