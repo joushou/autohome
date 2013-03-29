@@ -49,12 +49,20 @@ class AutoHome(object):
 		return self.actions[_id]
 
 	def broadcastStatus(self):
-		x = auto.listAutomators()
 		y = []
-		for i in x:
+		for i in self.automators:
 			y.append({'type': x[i].type, 'state': x[i].state, 'name': x[i].name})
 		if stack != None:
 			stack.write({'type': 'deviceState', 'payload': y})
+
+	def broadcastEvents(self):
+		y = []
+		for i in self.events:
+			y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
+			y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
+			y.append(y)
+		if stack != None:
+			stack.write({'type': 'eventState', 'payload': y})
 
 	def broadcastState(self, s):
 		if stack != None:
@@ -95,11 +103,13 @@ class AutoHome(object):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.disableEvent(i.event)
+		self.broadcastEvents()
 
 	def enableEvent(self, _id):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.enableEvent(i.event)
+		self.broadcastEvents()
 
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
@@ -147,7 +157,7 @@ class AutoHome(object):
 
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
-
+		self.broadcastEvents()
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
 		if dispatcher == 'scheduler':
@@ -158,6 +168,7 @@ class AutoHome(object):
 			raise RuntimeError('Dispatcher not supported')
 		aev = AutoEvent(name, ev, triggers)
 		self.events.append(aev)
+		self.broadcastEvents()
 
 auto = AutoHome(serfile, hwfile, eventFile)
 
@@ -169,13 +180,8 @@ def parse(a):
 				auto.broadcastStatus()
 				return {'type': 'info', 'payload': {'status': 'ok'}}
 			elif p['infoType'] == 'events':
-				evs = []
-				for i in auto.events:
-					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
-					y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
-					evs.append(y)
-				return {'type': 'eventState', 'payload': evs}
-
+				auto.broadcastEvents()
+				return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'register_event':
 			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
 			return {'type': 'info', 'payload': {'status': 'ok'}}
