@@ -100,7 +100,7 @@ class AutoTunes(Automated):
 
 		def tell(self, a, s):
 			self.osa('''
-tell application "%a"
+tell application "%s"
 	%s
 end tell
 			         ''' % (a,s))
@@ -111,4 +111,4 @@ end tell
 
 		def off(self):
 			self.state = 'off'
-			self.tell('iTunes', 'stop')
+			self.tell('iTunes', 'pause')
