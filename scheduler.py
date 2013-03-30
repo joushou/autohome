@@ -114,6 +114,7 @@ class eventScheduler(Thread):
 
 	def clearEvent(self, ev):
 		self.event_list.remove(ev)
+		self.wake()
 
 	def createEvent(self, event):
 		self.event_list.append(event)
