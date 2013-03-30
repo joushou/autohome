@@ -195,7 +195,7 @@ def parse(a):
 			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
 			return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'update_event':
-			auto.clearEvent(p['name'])
+			auto.clearEvent(p['old_name'])
 			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
 			return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'remove_event':
