@@ -111,4 +111,4 @@ end tell
 
 		def off(self):
 			self.state = 'off'
-			self.tellTunes('iTunes', 'stop')
+			self.tell('iTunes', 'stop')
