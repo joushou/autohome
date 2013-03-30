@@ -110,13 +110,15 @@ class AutoHome(object):
 			if i.name == _id:
 				self.scheduler.disableEvent(i.event)
 				self.broadcastEventState(i)
+		self.storeEvents()
 
 	def enableEvent(self, _id):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.enableEvent(i.event)
 				self.broadcastEventState(i)
-
+		self.storeEvents()
+		
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
 		def switcher(_id, state):
