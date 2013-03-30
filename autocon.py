@@ -47,14 +47,14 @@ class AutoHome(object):
 	def listActions(self, _id):
 		return self.actions[_id]
 
-	def broadcastStatus(self):
+	def broadcastDeviceStatus(self):
 		y = []
 		for i in self.automators:
 			y.append({'type': self.automators[i].type, 'state': self.automators[i].state, 'name': self.automators[i].name})
 		if stack != None:
 			stack.write({'type': 'deviceState', 'payload': y})
 
-	def broadcastEvents(self):
+	def broadcastEventStatus(self):
 		ev = []
 		for i in self.events:
 			y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
@@ -63,9 +63,15 @@ class AutoHome(object):
 		if stack != None:
 			stack.write({'type': 'eventState', 'payload': ev})
 
-	def broadcastState(self, s):
+	def broadcastDeviceState(self, s):
 		if stack != None:
 			stack.write({'type': 'partialDeviceState', 'payload': {'type': s.type, 'state': s.state, 'name': s.name}})
+
+	def broadcastEventState(self, s):
+		if stack != None:
+			y = {'name': s.name, 'triggers': s.triggers, 'event_dispatcher': s.event.event_dispatcher, 'active': s.event.active}
+			y['parameters'] = {'hour': s.event.time.hour, 'minute': s.event.time.minute, 'second': s.event.time.second, 'rec': s.event.type, 'days': []}
+			stack.write({'type': 'partialEventState', 'payload': y})
 
 	def on(self, key):
 		try:
@@ -75,7 +81,7 @@ class AutoHome(object):
 				self.broadcastStatus()
 			else:
 				self.automators[key].on()
-				self.broadcastState(self.automators[key])
+				self.broadcastDeviceState(self.automators[key])
 		except ValueError:
 			pass
 
@@ -84,10 +90,10 @@ class AutoHome(object):
 			if key == 'ALL':
 				for i in self.automators:
 					self.automators[i].off()
-				self.broadcastStatus()
+				self.broadcastDeviceStatus()
 			else:
 				self.automators[key].off()
-				self.broadcastState(self.automators[key])
+				self.broadcastDeviceState(self.automators[key])
 		except ValueError:
 			pass
 
@@ -102,13 +108,13 @@ class AutoHome(object):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.disableEvent(i.event)
-		self.broadcastEvents()
+				self.broadcastEventState(i)
 
 	def enableEvent(self, _id):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.enableEvent(i.event)
-		self.broadcastEvents()
+				self.broadcastEventState(i)
 
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
@@ -137,7 +143,7 @@ class AutoHome(object):
 							self.on(trigger['name'])
 						elif trigger['state'] == 'off':
 							self.off(trigger['name'])
-						self.broadcastState(self.automators[trigger['name']])
+						self.broadcastDeviceState(self.automators[trigger['name']])
 					break
 		self.scheduler.listen(handleEvent)
 
@@ -166,7 +172,7 @@ class AutoHome(object):
 
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
-		self.broadcastEvents()
+		self.broadcastEventState(aev)
 		self.storeEvents()
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
@@ -178,7 +184,7 @@ class AutoHome(object):
 			raise RuntimeError('Dispatcher not supported')
 		aev = AutoEvent(name, ev, triggers)
 		self.events.append(aev)
-		self.broadcastEvents()
+		self.broadcastEventState(aev)
 		self.storeEvents()
 
 auto = AutoHome(serfile, hwfile, eventFile)
@@ -188,10 +194,10 @@ def parse(a):
 		p = a['payload']
 		if a['type'] == 'info':
 			if p['infoType'] == 'toggles':
-				auto.broadcastStatus()
+				auto.broadcastDeviceStatus()
 				return {'type': 'info', 'payload': {'status': 'ok'}}
 			elif p['infoType'] == 'events':
-				auto.broadcastEvents()
+				auto.broadcastEventStatus()
 				return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'register_event':
 			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
