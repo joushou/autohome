@@ -3,7 +3,7 @@ from __future__ import print_function, absolute_import
 from datetime import datetime
 from sys import argv
 from serial import Serial
-from automated import Automated, AutoSartano, AutoHue, AutoLG
+from automated import Automated, AutoSartano, AutoHue, AutoLG, AutoTunes
 from scheduler import eventScheduler, event
 from stackable.stackable import StackableError
 from stackable.network import StackableSocket, StackablePacketAssembler
@@ -124,6 +124,8 @@ class AutoHome(object):
 				self.automators[i['name']] = AutoHue(**i['params'])
 			if i['type'] == 'AutoLG':
 				self.automators[i['name']] = AutoLG('/dev/ttyS0')
+			if i['type'] == 'AutoTunes':
+				self.automators[i['name']] = AutoTunes()
 			self.automators[i['name']].name = i['name']
 			self.automators[i['name']].type = i['type']
 

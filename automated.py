@@ -89,3 +89,26 @@ class AutoHue(Automated):
 
 	def dim(self, s):
 		self.send({'on': True, 'bri': int(s*2.54)})
+
+from os import system
+class AutoTunes(Automated):
+		def __init__(self):
+			super(AutoTunes, self).__init__()
+
+		def osa(self, s):
+			system('osascript -e \'%s\'' % s)
+
+		def tell(self, a, s):
+			self.osa('''
+tell application "%a"
+	%s
+end tell
+			         ''' % (a,s))
+
+		def on(self):
+			self.state = 'on'
+			self.tell('iTunes', 'play')
+
+		def off(self):
+			self.state = 'off'
+			self.tellTunes('iTunes', 'stop')
