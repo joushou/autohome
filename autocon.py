@@ -26,6 +26,7 @@ class AutoEvent(object):
 		self.name = name
 		self.event = event
 		self.triggers = triggers
+		self.deleted = False
 
 class AutoHome(object):
 	def __init__(s, serfile, hwfile, eventfile):
@@ -57,7 +58,7 @@ class AutoHome(object):
 	def broadcastEventStatus(self):
 		ev = []
 		for i in self.events:
-			y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
+			y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active, 'deleted': i.deleted}
 			y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
 			ev.append(y)
 		if stack != None:
@@ -69,7 +70,7 @@ class AutoHome(object):
 
 	def broadcastEventState(self, s):
 		if stack != None:
-			y = {'name': s.name, 'triggers': s.triggers, 'event_dispatcher': s.event.event_dispatcher, 'active': s.event.active}
+			y = {'name': s.name, 'triggers': s.triggers, 'event_dispatcher': s.event.event_dispatcher, 'active': s.event.active, 'deleted': s.deleted}
 			y['parameters'] = {'hour': s.event.time.hour, 'minute': s.event.time.minute, 'second': s.event.time.second, 'rec': s.event.type, 'days': []}
 			stack.write({'type': 'partialEventState', 'payload': y})
 
@@ -170,6 +171,7 @@ class AutoHome(object):
 		else:
 			return
 
+		aev.deleted = True
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
 		self.broadcastEventState(aev)
