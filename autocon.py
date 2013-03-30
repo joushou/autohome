@@ -1,7 +1,6 @@
 #!/usr/bin/python2.7
 from __future__ import print_function, absolute_import
 from datetime import datetime
-from json import loads
 from sys import argv
 from serial import Serial
 from automated import Automated, AutoSartano, AutoHue, AutoLG
@@ -11,7 +10,7 @@ from stackable.network import StackableSocket, StackablePacketAssembler
 from stackable.utils import StackableJSON, StackablePoker
 from stackable.stack import Stack
 from time import sleep
-import traceback
+import traceback, pickle, json
 
 serfile = argv[1]
 hwfile = argv[2]
@@ -37,7 +36,7 @@ class AutoHome(object):
 		s.events = []
 		s.scheduler = eventScheduler()
 		s.prepare()
-		s.loadEvents()
+		s.loadStoredEvents()
 
 	def listAutomators(self):
 		return self.automators
@@ -51,18 +50,18 @@ class AutoHome(object):
 	def broadcastStatus(self):
 		y = []
 		for i in self.automators:
-			y.append({'type': x[i].type, 'state': x[i].state, 'name': x[i].name})
+			y.append({'type': self.automators[i].type, 'state': self.automators[i].state, 'name': self.automators[i].name})
 		if stack != None:
 			stack.write({'type': 'deviceState', 'payload': y})
 
 	def broadcastEvents(self):
-		y = []
+		ev = []
 		for i in self.events:
 			y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
 			y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
-			y.append(y)
+			ev.append(y)
 		if stack != None:
-			stack.write({'type': 'eventState', 'payload': y})
+			stack.write({'type': 'eventState', 'payload': ev})
 
 	def broadcastState(self, s):
 		if stack != None:
@@ -117,7 +116,7 @@ class AutoHome(object):
 			ser.write(chr(state<<7|_id))
 
 		with open(hwfile) as f:
-			x = loads(f.read())
+			x = json.loads(f.read())
 		for i in x:
 			if i['type'] == 'AutoSartano':
 				self.automators[i['name']] = AutoSartano(i['params']['id'], switcher)
@@ -140,11 +139,19 @@ class AutoHome(object):
 					break
 		self.scheduler.listen(handleEvent)
 
-	def loadEvents(self):
+	def loadStoredEvents(self):
 		with open(self.eventfile) as f:
-			fevents = loads(f.read())
-		for i in fevents:
-			self.registerEvent(i['name'], i['event_dispatcher'], i['parameters'], i['triggers'])
+			a = f.read()
+			if a:
+				self.events = pickle.loads(a)
+			else:
+				self.events = []
+		for i in self.events:
+			self.scheduler.createEvent(i.event)
+
+	def storeEvents(self):
+		with open(self.eventfile, "w") as f:
+			f.write(pickle.dumps(self.events))
 
 	def clearEvent(self, name):
 		aev = None
@@ -158,6 +165,7 @@ class AutoHome(object):
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
 		self.broadcastEvents()
+		self.storeEvents()
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
 		if dispatcher == 'scheduler':
@@ -169,6 +177,7 @@ class AutoHome(object):
 		aev = AutoEvent(name, ev, triggers)
 		self.events.append(aev)
 		self.broadcastEvents()
+		self.storeEvents()
 
 auto = AutoHome(serfile, hwfile, eventFile)
 
