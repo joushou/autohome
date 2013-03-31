@@ -79,7 +79,7 @@ class AutoHome(object):
 			if key == 'ALL':
 				for i in self.automators:
 					self.automators[i].on()
-				self.broadcastStatus()
+				self.broadcastDeviceStatus()
 			else:
 				self.automators[key].on()
 				self.broadcastDeviceState(self.automators[key])
@@ -118,7 +118,7 @@ class AutoHome(object):
 				self.scheduler.enableEvent(i.event)
 				self.broadcastEventState(i)
 		self.storeEvents()
-		
+
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
 		def switcher(_id, state):
