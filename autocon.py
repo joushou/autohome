@@ -1,17 +1,16 @@
 #!/usr/bin/python2.7
 from __future__ import print_function, absolute_import
 from datetime import datetime
-from json import loads
 from sys import argv
 from serial import Serial
-from automated import Automated, AutoSartano, AutoHue, AutoLG
+from automated import Automated, AutoSartano, AutoHue, AutoLG, AutoTunes
 from scheduler import eventScheduler, event
 from stackable.stackable import StackableError
 from stackable.network import StackableSocket, StackablePacketAssembler
 from stackable.utils import StackableJSON, StackablePoker
 from stackable.stack import Stack
 from time import sleep
-import traceback
+import traceback, pickle, json
 
 serfile = argv[1]
 hwfile = argv[2]
@@ -27,6 +26,7 @@ class AutoEvent(object):
 		self.name = name
 		self.event = event
 		self.triggers = triggers
+		self.deleted = False
 
 class AutoHome(object):
 	def __init__(s, serfile, hwfile, eventfile):
@@ -37,7 +37,7 @@ class AutoHome(object):
 		s.events = []
 		s.scheduler = eventScheduler()
 		s.prepare()
-		s.loadEvents()
+		s.loadStoredEvents()
 
 	def listAutomators(self):
 		return self.automators
@@ -48,17 +48,31 @@ class AutoHome(object):
 	def listActions(self, _id):
 		return self.actions[_id]
 
-	def broadcastStatus(self):
-		x = auto.listAutomators()
+	def broadcastDeviceStatus(self):
 		y = []
-		for i in x:
-			y.append({'type': x[i].type, 'state': x[i].state, 'name': x[i].name})
+		for i in self.automators:
+			y.append({'type': self.automators[i].type, 'state': self.automators[i].state, 'name': self.automators[i].name})
 		if stack != None:
 			stack.write({'type': 'deviceState', 'payload': y})
 
-	def broadcastState(self, s):
+	def broadcastEventStatus(self):
+		ev = []
+		for i in self.events:
+			y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active, 'deleted': i.deleted}
+			y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
+			ev.append(y)
+		if stack != None:
+			stack.write({'type': 'eventState', 'payload': ev})
+
+	def broadcastDeviceState(self, s):
 		if stack != None:
 			stack.write({'type': 'partialDeviceState', 'payload': {'type': s.type, 'state': s.state, 'name': s.name}})
+
+	def broadcastEventState(self, s):
+		if stack != None:
+			y = {'name': s.name, 'triggers': s.triggers, 'event_dispatcher': s.event.event_dispatcher, 'active': s.event.active, 'deleted': s.deleted}
+			y['parameters'] = {'hour': s.event.time.hour, 'minute': s.event.time.minute, 'second': s.event.time.second, 'rec': s.event.type, 'days': []}
+			stack.write({'type': 'partialEventState', 'payload': y})
 
 	def on(self, key):
 		try:
@@ -68,7 +82,7 @@ class AutoHome(object):
 				self.broadcastStatus()
 			else:
 				self.automators[key].on()
-				self.broadcastState(self.automators[key])
+				self.broadcastDeviceState(self.automators[key])
 		except ValueError:
 			pass
 
@@ -77,10 +91,10 @@ class AutoHome(object):
 			if key == 'ALL':
 				for i in self.automators:
 					self.automators[i].off()
-				self.broadcastStatus()
+				self.broadcastDeviceStatus()
 			else:
 				self.automators[key].off()
-				self.broadcastState(self.automators[key])
+				self.broadcastDeviceState(self.automators[key])
 		except ValueError:
 			pass
 
@@ -95,19 +109,23 @@ class AutoHome(object):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.disableEvent(i.event)
+				self.broadcastEventState(i)
+		self.storeEvents()
 
 	def enableEvent(self, _id):
 		for i in self.events:
 			if i.name == _id:
 				self.scheduler.enableEvent(i.event)
-
+				self.broadcastEventState(i)
+		self.storeEvents()
+		
 	def prepare(self):
 		ser = Serial(serfile, 9600, timeout=1)
 		def switcher(_id, state):
 			ser.write(chr(state<<7|_id))
 
 		with open(hwfile) as f:
-			x = loads(f.read())
+			x = json.loads(f.read())
 		for i in x:
 			if i['type'] == 'AutoSartano':
 				self.automators[i['name']] = AutoSartano(i['params']['id'], switcher)
@@ -115,6 +133,8 @@ class AutoHome(object):
 				self.automators[i['name']] = AutoHue(**i['params'])
 			if i['type'] == 'AutoLG':
 				self.automators[i['name']] = AutoLG('/dev/ttyS0')
+			if i['type'] == 'AutoTunes':
+				self.automators[i['name']] = AutoTunes()
 			self.automators[i['name']].name = i['name']
 			self.automators[i['name']].type = i['type']
 
@@ -126,15 +146,23 @@ class AutoHome(object):
 							self.on(trigger['name'])
 						elif trigger['state'] == 'off':
 							self.off(trigger['name'])
-						self.broadcastState(self.automators[trigger['name']])
+						self.broadcastDeviceState(self.automators[trigger['name']])
 					break
 		self.scheduler.listen(handleEvent)
 
-	def loadEvents(self):
+	def loadStoredEvents(self):
 		with open(self.eventfile) as f:
-			fevents = loads(f.read())
-		for i in fevents:
-			self.registerEvent(i['name'], i['event_dispatcher'], i['parameters'], i['triggers'])
+			a = f.read()
+			if a:
+				self.events = pickle.loads(a)
+			else:
+				self.events = []
+		for i in self.events:
+			self.scheduler.createEvent(i.event)
+
+	def storeEvents(self):
+		with open(self.eventfile, "w") as f:
+			f.write(pickle.dumps(self.events))
 
 	def clearEvent(self, name):
 		aev = None
@@ -145,9 +173,11 @@ class AutoHome(object):
 		else:
 			return
 
+		aev.deleted = True
 		self.scheduler.clearEvent(aev.event)
 		self.events.remove(aev)
-
+		self.broadcastEventState(aev)
+		self.storeEvents()
 
 	def registerEvent(self, name, dispatcher, parameters, triggers):
 		if dispatcher == 'scheduler':
@@ -158,6 +188,8 @@ class AutoHome(object):
 			raise RuntimeError('Dispatcher not supported')
 		aev = AutoEvent(name, ev, triggers)
 		self.events.append(aev)
+		self.broadcastEventState(aev)
+		self.storeEvents()
 
 auto = AutoHome(serfile, hwfile, eventFile)
 
@@ -166,21 +198,16 @@ def parse(a):
 		p = a['payload']
 		if a['type'] == 'info':
 			if p['infoType'] == 'toggles':
-				auto.broadcastStatus()
-				return None
+				auto.broadcastDeviceStatus()
+				return {'type': 'info', 'payload': {'status': 'ok'}}
 			elif p['infoType'] == 'events':
-				evs = []
-				for i in auto.events:
-					y = {'name': i.name, 'triggers': i.triggers, 'event_dispatcher': i.event.event_dispatcher, 'active': i.event.active}
-					y['parameters'] = {'hour': i.event.time.hour, 'minute': i.event.time.minute, 'second': i.event.time.second, 'rec': i.event.type, 'days': []}
-					evs.append(y)
-				return {'type': 'eventState', 'payload': evs}
-
+				auto.broadcastEventStatus()
+				return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'register_event':
 			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
 			return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'update_event':
-			auto.clearEvent(p['name'])
+			auto.clearEvent(p['old_name'])
 			auto.registerEvent(p['name'], p['event_dispatcher'], p['parameters'], p['triggers'])
 			return {'type': 'info', 'payload': {'status': 'ok'}}
 		elif a['type'] == 'remove_event':
