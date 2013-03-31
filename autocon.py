@@ -235,5 +235,6 @@ while 1:
 		while 1:
 			stack.write(parse(stack.read()))
 	except:
+		stack.close()
 		traceback.print_exc()
 		sleep(5)
